@@ -62,6 +62,7 @@ function ProjectItem({ project, focused }) {
 
 export default function ProjectsSection({ focusId }) {
   const [flashId, setFlashId] = useState(null) // 短暂高亮中的条目 id
+  const [showLabels, setShowLabels] = useState(false) // 3D 星图全部节点名称常显开关
 
   // 从首页跳转选中某个项目：立即定位到该条并播放一次性高亮提示
   useEffect(() => {
@@ -80,12 +81,21 @@ export default function ProjectsSection({ focusId }) {
     <section aria-label="项目">
       <header className="section-head">
         <h2 className="section-title mono">~/projects</h2>
-        <p className="section-desc">
-          折腾过的一些硬件与软件项目。
-        </p>
+        <div className="section-desc-row">
+          <p className="section-desc">
+            折腾过的一些硬件与软件项目。
+          </p>
+          <button
+            type="button"
+            className="network-labels-btn mono"
+            onClick={() => setShowLabels((v) => !v)}
+          >
+            {showLabels ? 'hide labels' : 'show labels'}
+          </button>
+        </div>
       </header>
 
-      <ProjectsNetwork projects={projects} />
+      <ProjectsNetwork projects={projects} showLabels={showLabels} />
 
       <div className="projects-list">
         {sorted.map((project) => (

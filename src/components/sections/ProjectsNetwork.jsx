@@ -2,11 +2,11 @@
 //   - 节点按 fibonaci 球面分布；每帧按与相机距离缩放/明暗（depth cue），旋转时纵深变化明显
 //   - 状态三色（已完成/进行中/规划中）；related 画无向连线（去重）
 //   - 默认不显示名称：悬停节点时显示 tooltip
-//   - OrbitControls：按住拖拽任意方向旋转（带阻尼惯性）、滚轮缩放、autoRotate 缓慢自转（reduced-motion 关闭）
+//   - TrackballControls：按住拖拽像拧动星图，任意方向旋转（含翻转）、带阻尼惯性、滚轮缩放、不可平移；自转：绕随时间漂移的旋转轴翻滚（始终运行）
 // 窄屏（≤768px）降级：隐藏 3D，仅展示一行项目名
 import { useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Html } from '@react-three/drei'
+import { TrackballControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
 
 const STATUS_COLOR = {
@@ -16,6 +16,8 @@ const STATUS_COLOR = {
 }
 const EDGE_COLOR = '#8E8CD5' // 呼应背景波浪，低透明度细线
 const tmpVec = new THREE.Vector3()
+// 漂移旋转轴临时向量：每帧由低频正弦组合驱动方向，无固定轴
+const driftAxis = new THREE.Vector3()
 
 // fibonaci 球面均布点，保证任意数量节点在球面分布均匀
 function spherePositions(count, radius) {
@@ -30,25 +32,23 @@ function spherePositions(count, radius) {
   return pts
 }
 
-// 节点：按深度缩放与明暗，旋转时"近大远小"，更接近真实的星图纵深
-function StarNode({ position, color, name, hovered, onHover, onLeave }) {
+// 节点：按深度缩放，旋转时"近大远小"，更接近真实的星图纵深；小球始终不透明实心
+function StarNode({ position, color, name, hovered, showLabels, onHover, onLeave }) {
   const mesh = useRef()
-  const mat = useRef()
 
   useFrame(({ camera }) => {
-    if (!mesh.current || !mat.current) return
+    if (!mesh.current) return
     mesh.current.getWorldPosition(tmpVec)
     const d = tmpVec.distanceTo(camera.position)
     const s = THREE.MathUtils.clamp(2.3 - d * 0.18, 0.7, 1.9)
     mesh.current.scale.setScalar(s)
-    mat.current.opacity = THREE.MathUtils.clamp(1.25 - d * 0.1, 0.35, 1)
   })
 
   return (
     <mesh ref={mesh} position={position} onPointerOver={onHover} onPointerOut={onLeave}>
       <sphereGeometry args={[0.16, 20, 20]} />
-      <meshBasicMaterial ref={mat} color={color} transparent />
-      {hovered && (
+      <meshBasicMaterial color={color} />
+      {(showLabels || hovered) && (
         <Html center position={[0, 0.55, 0]} distanceFactor={5} zIndexRange={[50, 0]}>
           <span className="network-tooltip mono">{name}</span>
         </Html>
@@ -57,7 +57,7 @@ function StarNode({ position, color, name, hovered, onHover, onLeave }) {
   )
 }
 
-function NetworkScene({ projects }) {
+function NetworkScene({ projects, showLabels }) {
   const [hovered, setHovered] = useState(null)
   const positions = useMemo(() => spherePositions(projects.length, 3.2), [projects])
   const posById = useMemo(
@@ -82,23 +82,32 @@ function NetworkScene({ projects }) {
     return list
   }, [projects, posById])
 
-  const reduceMotion = useMemo(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    []
-  )
+  // 自转：旋转轴在世界空间平滑漂移，星图朝任意方向翻滚，无固定旋转轴
+  // 始终运行（不随 prefers-reduced-motion 关闭，用户明确需要可见的自转）
+  const spinRef = useRef()
+  const spinTime = useRef(0)
+
+  useFrame((_, delta) => {
+    if (!spinRef.current) return
+    spinTime.current += delta
+    const t = spinTime.current
+    // 旋转轴在世界空间平滑漂移：三个低频正弦、频率互成无理比，轨迹不重复
+    driftAxis
+      .set(Math.sin(t * 0.17), Math.sin(t * 0.11 + 1.3), Math.sin(t * 0.07 + 2.7))
+      .normalize()
+    spinRef.current.rotateOnWorldAxis(driftAxis, delta * 0.35)
+  })
 
   return (
     <>
-      <OrbitControls
-        enablePan={false}
-        enableZoom
+      <TrackballControls
+        noPan
+        rotateSpeed={2}
         minDistance={3.2}
         maxDistance={11}
-        enableDamping
-        dampingFactor={0.08}
-        autoRotate={!reduceMotion}
-        autoRotateSpeed={0.5}
+        dynamicDampingFactor={0.08}
       />
+      <group ref={spinRef}>
       {edges.map(([a, b], i) => (
         <line key={i}>
           <bufferGeometry>
@@ -117,6 +126,7 @@ function NetworkScene({ projects }) {
           color={STATUS_COLOR[p.status] || STATUS_COLOR['规划中']}
           name={p.name}
           hovered={hovered === p.id}
+          showLabels={showLabels}
           onHover={(e) => {
             e.stopPropagation()
             setHovered(p.id)
@@ -124,16 +134,17 @@ function NetworkScene({ projects }) {
           onLeave={() => setHovered((cur) => (cur === p.id ? null : cur))}
         />
       ))}
+      </group>
     </>
   )
 }
 
-export default function ProjectsNetwork({ projects }) {
+export default function ProjectsNetwork({ projects, showLabels }) {
   return (
     <div className="projects-network">
       <div className="network-3d" role="img" aria-label="项目之间的关联关系网络（拖拽旋转，滚轮缩放，悬停节点显示名称）">
         <Canvas camera={{ position: [0, 0, 6.5], fov: 45 }} dpr={[1, 2]}>
-          <NetworkScene projects={projects} />
+          <NetworkScene projects={projects} showLabels={showLabels} />
         </Canvas>
       </div>
 

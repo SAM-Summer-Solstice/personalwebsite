@@ -39,6 +39,28 @@
   max-width: 760px;
 }
 
+.section-desc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+/* 3D 星图标签开关：纯文字小按钮，无背景无边框 */
+.network-labels-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.network-labels-btn:hover {
+  color: var(--accent);
+}
+
 /* ============ 标签：纯文字，去掉 pill 边框 ============ */
 .chip {
   display: inline-block;
@@ -624,18 +646,14 @@
   cursor: grabbing;
 }
 
-/* 悬停节点时显示的名称 tooltip */
+/* 节点名称标签：悬停 tooltip 与常显标签共用，纯白文字无背景无边框 */
 .network-tooltip {
   display: block;
-  padding: 5px 12px;
   font-size: 13px;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  color: var(--text);
-  background: color-mix(in srgb, var(--bg-soft) 95%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   pointer-events: none;
   user-select: none;
 }

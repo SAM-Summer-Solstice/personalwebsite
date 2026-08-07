@@ -1,0 +1,839 @@
+/* ============ 内容区容器 ============ */
+.content-area {
+  overflow-x: hidden; /* 主内容区不允许横向溢出 */
+}
+
+.content-shell {
+  max-width: 1700px;
+  margin: 0 auto;
+  padding: 88px 24px 40px; /* 顶部留出 50px 固定导航 + 38px 间距 */
+  animation: fadeIn 0.35s ease;
+  overflow-wrap: break-word; /* 长链接等不撑破版心 */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============ 小节标题（三个模块共用） ============ */
+.section-head {
+  margin-bottom: 30px;
+}
+
+.section-title {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.section-desc {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 16px;
+  max-width: 760px;
+}
+
+/* ============ 标签：纯文字，去掉 pill 边框 ============ */
+.chip {
+  display: inline-block;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--accent-2);
+  margin-right: 14px;
+  white-space: nowrap;
+}
+
+.blog-card-tags .chip::before {
+  content: '# ';
+  color: var(--text-muted);
+}
+
+/* ============ 展开/收起动画（grid 行高过渡） ============ */
+.expander {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s ease;
+}
+
+.expander.is-open {
+  grid-template-rows: 1fr;
+}
+
+.expander-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ============ 日志：纯文字列表 ============ */
+.blog-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.blog-item {
+  position: relative;
+  padding: 20px 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.blog-item:last-child {
+  border-bottom: none;
+}
+
+/* 从首页跳转选中的条目：左侧半透明宽长条 + 一次性呼吸提示 */
+/* 用 ::before + opacity 过渡实现，淡出靠 opacity 插值（比 box-shadow 颜色插值可靠） */
+.blog-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 12px;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.blog-item.is-focused::before,
+.project-item.is-focused::before {
+  opacity: 1;
+}
+
+.blog-item.is-focused .blog-card-title {
+  color: var(--accent);
+}
+
+.project-item.is-focused .project-name {
+  color: var(--accent);
+}
+
+@keyframes focus-pulse {
+  0% {
+    background: transparent;
+  }
+  35% {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+.blog-item.is-focused,
+.project-item.is-focused {
+  animation: focus-pulse 0.2s ease;
+}
+
+.blog-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.blog-card-date {
+  font-size: 14px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 92px;
+  font-variant-numeric: tabular-nums;
+}
+
+.blog-card-title {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.5;
+  font-family: inherit;
+  transition: color 0.2s ease;
+}
+
+.blog-card-title:hover {
+  color: var(--accent);
+}
+
+.blog-card-tags {
+  margin-top: 8px;
+}
+
+.blog-card-excerpt {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+/* ============ 日志：工具栏（搜索 + 标签筛选） ============ */
+.blog-toolbar {
+  padding: 0 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blog-search {
+  appearance: none;
+  width: 100%;
+  max-width: 360px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  transition: border-color 0.2s ease;
+}
+
+.blog-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.blog-search::placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.blog-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+/* 筛选 chip：按钮感但仍是文字风格，与正文 .chip（accent-2 静态）区分 */
+.blog-filter-chip {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.blog-filter-chip::before {
+  content: '# ';
+  opacity: 0.55;
+}
+
+.blog-filter-chip:hover {
+  color: var(--text);
+}
+
+.blog-filter-chip.is-active {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.blog-filter-chip.is-active::before {
+  opacity: 1;
+}
+
+.blog-empty {
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+/* ============ 日志：帖子信息行（浏览 / 评论入口 / 点赞） ============ */
+.blog-post-meta {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 13px;
+}
+
+.post-meta-views,
+.post-meta-comments,
+.post-meta-like {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.post-meta-comments,
+.post-meta-like {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.post-meta-comments:hover,
+.post-meta-like:hover {
+  color: var(--text);
+}
+
+.post-meta-like.is-liked {
+  color: var(--accent);
+}
+
+/* ============ 日志：单篇视图 + TOC ============ */
+.blog-single {
+  padding: 0 20px 48px;
+}
+
+.blog-back {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.blog-back:hover {
+  color: var(--accent);
+}
+
+.blog-single-title {
+  margin-top: 18px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.blog-single-meta {
+  margin-top: 10px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.blog-single-meta .blog-card-tags {
+  margin-top: 0;
+}
+
+.blog-toc {
+  margin-top: 28px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.blog-toc-item {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  text-align: left;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  transition: color 0.2s ease;
+}
+
+.blog-toc-item:hover {
+  color: var(--accent);
+}
+
+.blog-toc-index {
+  font-size: 12px;
+  color: var(--accent-2);
+  min-width: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ 日志：Markdown 正文排版（md-body） ============ */
+.md-body {
+  margin-top: 22px;
+}
+
+.md-body h2 {
+  margin-top: 34px;
+  margin-bottom: 2px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--accent);
+  scroll-margin-top: 24px; /* TOC 平滑滚动到小节时顶部留白 */
+}
+
+.md-body h2:first-child {
+  margin-top: 0;
+}
+
+.md-body p {
+  margin-top: 12px;
+  font-size: 16px;
+  line-height: 1.8;
+  max-width: 860px;
+}
+
+/* 行内代码 */
+.md-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.9em;
+  background: var(--bg-soft);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+/* 代码块：深色底 + 横向滚动，窄屏不破版 */
+.md-body pre {
+  margin-top: 14px;
+  background: var(--bg-soft);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.md-body pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.md-body ul,
+.md-body ol {
+  margin-top: 12px;
+  padding-left: 22px;
+  font-size: 16px;
+  line-height: 1.8;
+  max-width: 860px;
+}
+
+.md-body li {
+  margin-top: 4px;
+}
+
+/* 引用：左侧发丝线 + muted 色 */
+.md-body blockquote {
+  margin: 14px 0 0;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1.8;
+  max-width: 860px;
+}
+
+.md-body a {
+  color: var(--accent-2);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.md-body a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.blog-single > .blog-post-meta {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* ============ 日志：评论区（Giscus / 未配置提示） ============ */
+.blog-comments-area {
+  margin-top: 40px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
+
+.blog-giscus-hint {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-muted);
+  max-width: 860px;
+}
+
+/* ============ 项目：纯文字列表 ============ */
+.projects-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-item {
+  position: relative;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  padding: 20px 20px 24px;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+}
+
+/* 展开/收起切换按钮：包住名称/简介/技术栈；外链与详情在按钮之外 */
+.project-toggle {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+/* 选中提示条（与 .blog-item 共用 ::before + opacity 方案） */
+.project-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 12px;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.project-item:last-child {
+  border-bottom: none;
+}
+
+.project-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.project-name {
+  font-size: 18px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.project-item:hover .project-name {
+  color: var(--accent);
+}
+
+.project-status {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.project-status.doing::before {
+  content: '● ';
+  color: var(--accent);
+}
+
+.project-status.done::before {
+  content: '● ';
+  color: var(--accent-2);
+}
+
+.project-status.planning::before {
+  content: '● ';
+  color: var(--text-muted);
+}
+
+.project-date {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.project-tagline {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.project-tech {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.project-detail {
+  margin-top: 14px;
+  padding-left: 16px;
+  border-left: 2px solid var(--border);
+  font-size: 16px;
+}
+
+/* 外链行：demo / github，新标签打开 */
+.project-links {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 13px;
+}
+
+.project-link {
+  color: var(--accent-2);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.project-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ============ 项目：知识网络（SVG） ============ */
+.projects-network {
+  margin-bottom: 36px;
+}
+
+.network-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+/* 连线：底边发丝线 + 流动虚线叠加，表达"动态连接" */
+.network-link-base {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.network-link-flow {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 11;
+  animation: network-flow 1.4s linear infinite;
+}
+
+@keyframes network-flow {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+.network-node circle {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.network-node text {
+  font-size: 12px;
+  fill: var(--text);
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 窄屏降级：隐藏连线 SVG，只留一行节点 */
+.network-inline {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .network-svg {
+    display: none;
+  }
+  .network-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .network-inline-node {
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .network-link-flow {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
+
+/* ============ 关于：纯文字 ============ */
+/* 桌面端两栏：左文字 + 右 sticky Lanyard；< 1024px 隐藏侧栏回退单列 */
+.about-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 38%);
+  gap: 56px;
+  align-items: start;
+}
+
+.about-main {
+  min-width: 0;
+}
+
+.about-side {
+  height: 100vh;
+  min-height: 420px;
+  /* 上提：抵消 content-shell 的 padding-top(88px) 并再上移 40px，
+     画布顶高于 header 顶，吊牌挂绳从页面最顶端垂下；
+     不用 sticky，吊牌随页面自然滚动 */
+  margin-top: -128px;
+  /* 一圈淡发丝边框勾勒边界，与站点 var(--border) 分隔线风格统一 */
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 1023px) {
+  .about-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .about-side {
+    display: none;
+  }
+}
+
+.about-name {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.about-meta {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.about-section {
+  margin-top: 34px;
+}
+
+.about-section-title {
+  font-size: 14px;
+  color: var(--accent);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.about-paragraph + .about-paragraph {
+  margin-top: 12px;
+}
+
+.about-paragraph {
+  font-size: 16px;
+  max-width: 860px;
+}
+
+.direction-chips {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.interest-list {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.about-stats-line {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 860px;
+}
+
+.about-stats-line .stat {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
+.contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contact-item {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.contact-label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.contact-item a {
+  color: var(--accent-2);
+  text-decoration: none;
+}
+
+.contact-item a:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-shell {
+    animation: none;
+  }
+  .blog-item.is-focused,
+  .project-item.is-focused {
+    animation: none;
+  }
+  .blog-search,
+  .blog-filter-chip,
+  .post-meta-comments,
+  .post-meta-like,
+  .blog-back,
+  .blog-toc-item,
+  .md-body a {
+    transition: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-shell {
+    padding: 76px 16px 24px;
+  }
+  .blog-card-head {
+    gap: 8px;
+  }
+  .blog-card-date {
+    min-width: 0;
+  }
+  .blog-toolbar,
+  .blog-empty {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .blog-single {
+    padding: 0 0 40px;
+  }
+  .blog-single-title {
+    font-size: 22px;
+  }
+}

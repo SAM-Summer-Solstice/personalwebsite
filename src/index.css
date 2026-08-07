@@ -1,0 +1,81 @@
+:root {
+  color-scheme: dark;
+  --bg: #1A1C1E;
+  --bg-soft: #212427;
+  --bg-card: #1F2224;
+  --text: #E4E4E7;
+  --text-muted: #9CA3AF;
+  --accent: #A79BF0;
+  --accent-2: #6FBFC9;
+  --terminal-bg: #0F1113;
+  --border: rgba(228, 228, 231, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  transition: background 0.3s, color 0.3s;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* 移动端浏览器地址栏伸缩时高度自适应，避免双滚动条 */
+  overflow: hidden;
+}
+
+.content-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.terminal {
+  height: 260px;
+  flex-shrink: 0;
+  background: var(--terminal-bg);
+  border-top: 1px solid var(--border);
+}
+
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(228, 228, 231, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(228, 228, 231, 0.3);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(228, 228, 231, 0.15) transparent;
+}

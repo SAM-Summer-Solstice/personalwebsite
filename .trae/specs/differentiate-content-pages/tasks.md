@@ -1,0 +1,42 @@
+# Tasks
+
+- [x] Task 1: 数据层扩展（posts / projects）
+  - [x] SubTask 1.1: `posts.js` 每篇新增 `views`、`comments`（author/time/text mock 数组）、`likes`；`content` 重构为块数组 `[{type:'h2'|'p', text}]`（每篇补 2-4 个小标题）
+  - [x] SubTask 1.2: `projects.js` 每个项目新增 `url`、`github`、`date`（用于排序）、`related`（关联 id 数组，部分项目留空）；`status` 覆盖三态（含 `规划中`）
+  - [x] SubTask 1.3: node 冒烟校验通过（ALL OK），字段完整、related 引用有效、状态三态齐全
+- [x] Task 2: posts 工具栏（标签筛选 + 搜索）
+  - [x] SubTask 2.1: `BlogSection.jsx` 顶部渲染搜索框 + 标签 chips（从全部文章 tags 去重生成）
+  - [x] SubTask 2.2: 筛选逻辑（标签 + 关键词叠加），空结果显示纯文字空状态
+  - [x] SubTask 2.3: `ContentArea.css` 工具栏/搜索框/激活 chip/空状态样式
+- [x] Task 3: posts 帖子感（浏览 / 评论 / 点赞）
+  - [x] SubTask 3.1: `PostMeta` 信息行：浏览数、评论数（点击展开评论列表）、点赞按钮
+  - [x] SubTask 3.2: 点赞前端 state（+1 / 已赞态 / 取消），评论展开收起
+  - [x] SubTask 3.3: `ContentArea.css` 帖子信息行/评论列表/点赞样式
+- [x] Task 4: posts 单篇独立视图 + TOC
+  - [x] SubTask 4.1: `selectedId` 状态，点击标题进入单篇视图，`← 返回列表` 保留筛选/搜索
+  - [x] SubTask 4.2: 单篇视图渲染标题/日期/标签/结构化正文，h2 带锚点 id
+  - [x] SubTask 4.3: 正文顶部 TOC（h2 列表），点击平滑滚动（reduced-motion 降级 auto）
+  - [x] SubTask 4.4: 单篇视图复用 PostMeta（评论/点赞）
+  - [x] SubTask 4.5: `ContentArea.css` 单篇视图/正文/TOC/返回样式
+- [x] Task 5: projects 外链 + 状态时间线
+  - [x] SubTask 5.1: 列表按 `date` 倒序渲染
+  - [x] SubTask 5.2: 外链行 demo / github（`target="_blank" rel="noreferrer"`，无字段不渲染）
+  - [x] SubTask 5.3: 状态三色（已完成 accent-2 / 进行中 accent / 规划中 text-muted）+ 日期展示
+  - [x] SubTask 5.4: `ContentArea.css` 外链行/日期/状态点样式
+- [x] Task 6: projects 知识网络
+  - [x] SubTask 6.1: 新增 `ProjectsNetwork.jsx`：SVG 环形布局节点 + `related` 连线
+  - [x] SubTask 6.2: 连线流动动画（stroke-dasharray + 偏移循环），无关联节点独立
+  - [x] SubTask 6.3: `ProjectsSection.jsx` 列表上方挂载；窄屏降级为一行节点
+  - [x] SubTask 6.4: `ContentArea.css` 网络图容器/节点/连线/动画样式
+- [x] Task 7: 构建与运行验证
+  - [x] SubTask 7.1: `npm run build` 通过（594 modules）
+  - [x] SubTask 7.2: dev server HMR 正常、浏览器无报错；功能由浏览器预览验证
+
+# Task Dependencies
+- [Task 1] 无（数据层先行）
+- [Task 2] 依赖 [Task 1]
+- [Task 3] 依赖 [Task 1]
+- [Task 4] 依赖 [Task 1]、[Task 3]（复用评论/点赞）
+- [Task 5] 依赖 [Task 1]
+- [Task 6] 依赖 [Task 1]
+- [Task 7] 依赖 [Task 2]~[Task 6]

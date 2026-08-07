@@ -1,0 +1,256 @@
+/* ── 表白彩带（ConfettiBurst）───────────────────── */
+.ee-confetti-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 500;
+}
+
+.ee-confetti {
+  position: absolute;
+  width: var(--w);
+  height: var(--h);
+  background: var(--color);
+  border-radius: 2px;
+  animation: ee-confetti-fly var(--dur) cubic-bezier(0.45, 0.05, 0.55, 0.95) var(--delay) both;
+  will-change: transform, opacity;
+}
+
+.ee-confetti-circle {
+  border-radius: 50%;
+}
+
+.ee-confetti-ribbon {
+  border-radius: 1px;
+}
+
+.ee-confetti-emoji {
+  background: none;
+  width: auto;
+  height: auto;
+  font-size: var(--h);
+  line-height: 1;
+  border-radius: 0;
+}
+
+/* 自然飘落：抛出（向上向内）→ 顶点 → 左右摇摆缓慢下落 → 飘出屏外并淡出 */
+@keyframes ee-confetti-fly {
+  0% {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  12% {
+    transform: translate(var(--tx1), var(--ty1)) rotate(var(--r1));
+    opacity: 1;
+  }
+  32% {
+    transform: translate(var(--tx2), var(--ty2)) rotate(var(--r2));
+    opacity: 1;
+  }
+  52% {
+    transform: translate(var(--tx3), var(--ty3)) rotate(var(--r3));
+    opacity: 0.95;
+  }
+  72% {
+    transform: translate(var(--tx4), var(--ty4)) rotate(var(--r4));
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(var(--tx5), var(--ty5)) rotate(var(--r5));
+    opacity: 0;
+  }
+}
+
+.ee-confetti-text {
+  position: absolute;
+  left: 50%;
+  bottom: 24%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 18px;
+  color: var(--text);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 20px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  animation: ee-fade-in-out 3.6s ease-in-out 0.9s both;
+}
+
+@keyframes ee-fade-in-out {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.94);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* ── 生日祝福（BirthdayOverlay）──────────────────── */
+.ee-birthday-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 600;
+}
+
+.ee-birthday-deco {
+  position: absolute;
+  line-height: 1;
+  opacity: 0;
+  animation: ee-deco-float 3s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes ee-deco-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-16px) rotate(12deg);
+    opacity: 1;
+  }
+}
+
+.ee-birthday-card {
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 30px 46px;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.35);
+  animation: ee-birthday-card 5.6s ease-in-out both;
+}
+
+@keyframes ee-birthday-card {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.9);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1.02);
+  }
+  18% {
+    transform: translateY(0) scale(1);
+  }
+  86% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.97);
+  }
+}
+
+.ee-birthday-cake {
+  font-size: 64px;
+  line-height: 1;
+  animation: ee-bounce 1.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes ee-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-14px);
+  }
+  55% {
+    transform: translateY(-4px);
+  }
+  70% {
+    transform: translateY(-8px);
+  }
+}
+
+.ee-birthday-title {
+  font-size: 30px;
+  margin: 14px 0 8px;
+  color: var(--accent);
+  animation: ee-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes ee-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 10px rgba(255, 159, 28, 0.4);
+  }
+  50% {
+    text-shadow: 0 0 26px rgba(255, 159, 28, 0.85);
+  }
+}
+
+.ee-birthday-msg {
+  font-size: 14.5px;
+  color: var(--text-muted);
+  max-width: 340px;
+}
+
+/* ── 星空背景（Starfield）：内容之后、body 背景之上 ── */
+.ee-starfield {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.ee-star {
+  position: absolute;
+  border-radius: 50%;
+  animation: ee-twinkle 3s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.ee-star-big {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes ee-twinkle {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── 矩阵雨（MatrixRain）────────────────────────── */
+.ee-matrix {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+/* ── 窄屏：生日卡片缩紧、不贴边 ─────────────────── */
+@media (max-width: 768px) {
+  .ee-birthday-card {
+    padding: 22px 18px;
+    margin: 0 16px;
+  }
+  .ee-birthday-cake {
+    font-size: 48px;
+  }
+  .ee-birthday-title {
+    font-size: 24px;
+  }
+}

@@ -1,0 +1,135 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.navbar-inner {
+  width: 100%;
+  max-width: 1700px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.navbar-logo {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  user-select: none;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.navbar-logo:hover {
+  color: var(--text);
+}
+
+.navbar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navbar-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 4px 12px;
+  border-radius: 6px;
+  position: relative;
+  white-space: nowrap;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.navbar-tab:hover {
+  color: var(--text);
+  background: var(--bg-soft);
+}
+
+.navbar-tab.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* 底部下划线：激活时从左向右滑出 */
+.navbar-tab::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 1px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
+.navbar-tab.is-active::after {
+  transform: scaleX(1);
+}
+
+.navbar-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.navbar-clock-date {
+  opacity: 0.7;
+}
+
+.navbar-clock-time {
+  font-weight: 600;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .navbar-inner {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .navbar-logo {
+    font-size: 15px;
+  }
+  .navbar-tab {
+    font-size: 13px;
+    padding: 4px 9px;
+  }
+  .navbar-clock {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .navbar-clock-date {
+    display: none;
+  }
+}

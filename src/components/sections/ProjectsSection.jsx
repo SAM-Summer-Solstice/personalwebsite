@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { projects } from '../../data/projects.js'
-import ProjectsNetwork from './ProjectsNetwork.jsx'
+// ProjectsNetwork（three + drei TrackballControls）较重，仅进入 projects 页时按需加载
+const ProjectsNetwork = lazy(() => import('./ProjectsNetwork.jsx'))
 
 function ProjectItem({ project, focused }) {
   const [open, setOpen] = useState(false)
@@ -63,6 +64,24 @@ function ProjectItem({ project, focused }) {
 export default function ProjectsSection({ focusId }) {
   const [flashId, setFlashId] = useState(null) // 短暂高亮中的条目 id
   const [showLabels, setShowLabels] = useState(false) // 3D 星图全部节点名称常显开关
+  const overviewRef = useRef(null)
+
+  // 星图 canvas 在可视范围内时，概览侧栏与其等高对齐；滚出视口后恢复自然高度。
+  // 直接用 classList 切换，避免触发 React 重渲染干扰 Canvas，保证过渡平滑。
+  useEffect(() => {
+    const net = document.querySelector('.projects-network .network-3d')
+    const aside = overviewRef.current
+    const root = document.querySelector('.content-area')
+    if (!net || !aside || !root) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => aside.classList.toggle('is-aligned', entry.isIntersecting))
+      },
+      { root, threshold: 0 }
+    )
+    observer.observe(net)
+    return () => observer.disconnect()
+  }, [])
 
   // 从首页跳转选中某个项目：立即定位到该条并播放一次性高亮提示
   useEffect(() => {
@@ -77,30 +96,75 @@ export default function ProjectsSection({ focusId }) {
   // 按日期从新到旧排序
   const sorted = [...projects].sort((a, b) => new Date(b.date) - new Date(a.date))
 
+  // 概览侧栏数据：状态计数 / 技术栈聚合 / 最近在做
+  const doneCount = projects.filter((p) => p.status === '已完成').length
+  const doingCount = projects.filter((p) => p.status === '进行中').length
+  const planningCount = projects.filter((p) => p.status === '规划中').length
+  const techs = [...new Set(projects.flatMap((p) => p.tech))].slice(0, 8)
+  const latest = sorted[0]
+
   return (
     <section aria-label="项目">
-      <header className="section-head">
-        <h2 className="section-title mono">~/projects</h2>
-        <div className="section-desc-row">
-          <p className="section-desc">
-            折腾过的一些硬件与软件项目。
-          </p>
-          <button
-            type="button"
-            className="network-labels-btn mono"
-            onClick={() => setShowLabels((v) => !v)}
-          >
-            {showLabels ? 'hide labels' : 'show labels'}
-          </button>
+      <div className="projects-page">
+        <div className="projects-main">
+          <header className="section-head">
+            <h2 className="section-title mono" data-reveal-title>~/projects</h2>
+            <div className="section-desc-row" data-reveal>
+              <p className="section-desc">
+                折腾过的一些硬件与软件项目。
+              </p>
+              <button
+                type="button"
+                className="network-labels-btn mono"
+                onClick={() => setShowLabels((v) => !v)}
+              >
+                {showLabels ? 'hide labels' : 'show labels'}
+              </button>
+            </div>
+          </header>
+
+          <div className="projects-network-wrap" data-reveal>
+            <Suspense fallback={<div className="network-3d" aria-hidden="true" />}>
+              <ProjectsNetwork projects={projects} showLabels={showLabels} />
+            </Suspense>
+          </div>
+
+          <div className="projects-list" data-stagger>
+            {sorted.map((project) => (
+              <ProjectItem key={project.id} project={project} focused={project.id === flashId} />
+            ))}
+          </div>
         </div>
-      </header>
 
-      <ProjectsNetwork projects={projects} showLabels={showLabels} />
+        <aside ref={overviewRef} className="projects-overview" aria-label="项目概览">
+          <h3 className="overview-title mono">~/projects</h3>
 
-      <div className="projects-list">
-        {sorted.map((project) => (
-          <ProjectItem key={project.id} project={project} focused={project.id === flashId} />
-        ))}
+          <dl className="overview-stats">
+            <div className="overview-stat">
+              <dt className="mono done">done</dt>
+              <dd className="mono">{doneCount}</dd>
+            </div>
+            <div className="overview-stat">
+              <dt className="mono doing">doing</dt>
+              <dd className="mono">{doingCount}</dd>
+            </div>
+            <div className="overview-stat">
+              <dt className="mono planning">planning</dt>
+              <dd className="mono">{planningCount}</dd>
+            </div>
+          </dl>
+
+          <div className="overview-block">
+            <h4 className="overview-label mono">tech</h4>
+            <p className="overview-tech mono">{techs.join(' · ')}</p>
+          </div>
+
+          <div className="overview-block">
+            <h4 className="overview-label mono">now</h4>
+            <p className="overview-now mono">{latest.name}</p>
+            <p className="overview-now-tag">{latest.tagline}</p>
+          </div>
+        </aside>
       </div>
     </section>
   )

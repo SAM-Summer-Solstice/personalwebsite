@@ -11,6 +11,14 @@ const BANNER = [
   { text: '', cls: 'normal' },
 ]
 
+// 页面 → 终端路径：切换页面时 prompt 与标题随页面联动
+const CWD_BY_TAB = {
+  home: '~',
+  blog: '~/posts',
+  projects: '~/projects',
+  about: '~/about',
+}
+
 // 表格不参与逐字打字（到达时整块浮现），只统计文本行
 function countLineChars(line) {
   if (line.table) return 0
@@ -23,16 +31,14 @@ function typeDelay(total) {
   return Math.max(4, Math.min(25, Math.round(ms)))
 }
 
-export default function Terminal({ onNavigate, onEasterEgg, matrixActive }) {
+export default function Terminal({ activeTab, onNavigate, onEasterEgg, matrixActive }) {
   const [cwd, setCwd] = useState('~')
   const [blocks, setBlocks] = useState([])
   const [typing, setTyping] = useState(null) // { id, total, typed }
   const [history, setHistory] = useState([])
   const [value, setValue] = useState('')
-  // 窄屏默认收起，PC 默认展开
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < 768,
-  )
+  // 终端默认收起（所有屏宽），点击标题栏/三角展开
+  const [collapsed, setCollapsed] = useState(true)
   // 用户手动调整的终端高度（null = 跟随 CSS 默认 250px / 45vh）
   const [termHeight, setTermHeight] = useState(null)
   const [resizing, setResizing] = useState(false)
@@ -50,6 +56,12 @@ export default function Terminal({ onNavigate, onEasterEgg, matrixActive }) {
     setBlocks([{ id: idRef.current++, lines: BANNER }])
     return () => clearTimeout(timerRef.current)
   }, [])
+
+  // 切换页面时，cwd 同步为页面对应路径（cd 仍可自由切换，切页后重置为页面路径）
+  useEffect(() => {
+    const p = CWD_BY_TAB[activeTab]
+    if (p) setCwd(p)
+  }, [activeTab])
 
   // 挂载后（或展开后）自动聚焦；收起时输入框隐藏，不聚焦
   useEffect(() => {
@@ -297,7 +309,7 @@ export default function Terminal({ onNavigate, onEasterEgg, matrixActive }) {
           <i className="term-dot term-dot-two" />
           <i className="term-dot term-dot-three" />
         </span>
-        <span className="term-title mono">xzx@blog: ~ — bash</span>
+        <span className="term-title mono">xzx@blog: {cwd} — bash</span>
         <button
           type="button"
           className="term-toggle mono"

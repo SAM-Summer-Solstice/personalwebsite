@@ -143,6 +143,43 @@ function DitheredWaves({
 }) {
   const mouseRef = useRef(new THREE.Vector2());
   const { viewport, size, gl } = useThree();
+  // 直接持有 material 实例：R3F v9 会把传入的 uniforms 按值拷进 material 自身的 uniforms，
+  // 原始值（如 time 的数字）在运行时对外层对象赋值到不了 shader，必须改 material.uniforms。
+  const materialRef = useRef(null);
+
+  // 自愈：WebGL 上下文丢失（画面冻结在首帧、toDataURL 不再变化）时主动强制恢复。
+  // three.js 的 render() 在 _isContextLost 时静默跳过，useFrame 仍在跑，表象即「time 在走但画面不动」。
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const glCtx = gl.getContext();
+    if (!glCtx) return;
+    let retry = null;
+    const onLost = (e) => {
+      e.preventDefault(); // 允许浏览器尝试恢复
+      console.warn('[dither] webglcontextlost — 画面已冻结，开始轮询强制恢复…');
+      if (retry) return;
+      retry = setInterval(() => {
+        if (glCtx.isContextLost()) {
+          try {
+            gl.forceContextRestore();
+          } catch (_) {}
+        } else {
+          clearInterval(retry);
+          retry = null;
+        }
+      }, 500);
+    };
+    const onRestored = () => {
+      console.log('[dither] webglcontextrestored — 已恢复渲染');
+    };
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
+    return () => {
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
+      if (retry) clearInterval(retry);
+    };
+  }, [gl]);
 
   const waveUniformsRef = useRef({
     time: new THREE.Uniform(0),
@@ -159,10 +196,12 @@ function DitheredWaves({
   });
 
   useEffect(() => {
+    const mat = materialRef.current;
+    if (!mat) return;
     const dpr = gl.getPixelRatio();
     const w = Math.floor(size.width * dpr),
       h = Math.floor(size.height * dpr);
-    const res = waveUniformsRef.current.resolution.value;
+    const res = mat.uniforms.resolution.value;
     if (res.x !== w || res.y !== h) {
       res.set(w, h);
     }
@@ -180,24 +219,39 @@ function DitheredWaves({
     return () => window.removeEventListener('pointermove', onPointerMove);
   }, [enableMouseInteraction, gl]);
 
-  const prevColor = useRef([...waveColor]);
-  useFrame(({ clock }) => {
-    const u = waveUniformsRef.current;
+  // 动画时间：每帧用 delta 自增累加，不依赖 Clock.getElapsedTime（消除时钟不确定性）
+  const timeRef = useRef(0);
+  useFrame((_, delta) => {
+    const mat = materialRef.current;
+    if (!mat) return;
+    // 直接改 material 自身的 uniforms（R3F 拷贝语义下唯一能到达 shader 的路径）
+    const u = mat.uniforms;
 
     if (!disableAnimation) {
-      u.time.value = clock.getElapsedTime();
+      timeRef.current += delta;
+      u.time.value = timeRef.current;
     }
 
     if (u.waveSpeed.value !== waveSpeed) u.waveSpeed.value = waveSpeed;
-    if (u.waveFrequency.value !== waveFrequency) u.waveFrequency.value = waveFrequency;
+
+    // 频率与颗粒度在基准值附近低频平滑波动（多正弦叠加 ≈ 随机噪声，慢呼吸感）
+    const t = timeRef.current;
+    const breathe =
+      Math.sin(t * 0.21) * Math.sin(t * 0.13 + 1.7) +
+      Math.sin(t * 0.29 + 2.9) * Math.sin(t * 0.11 + 4.3);
+    const breatheN = breathe / 2; // ≈ [-1, 1]
+    const freqNow = waveFrequency * (1 + 0.18 * breatheN);
+    if (u.waveFrequency.value !== freqNow) u.waveFrequency.value = freqNow;
     if (u.waveAmplitude.value !== waveAmplitude) u.waveAmplitude.value = waveAmplitude;
     if (u.colorNum.value !== colorNum) u.colorNum.value = colorNum;
-    if (u.pixelSize.value !== pixelSize) u.pixelSize.value = pixelSize;
+    // 颗粒度波动：恒在 [pixelSize, pixelSize×1.5] = [2, 3] 之间（只增不减，
+    // 避免 pixelSize 低于 2 时全屏 shader 采样数翻倍）
+    const pixelNow = pixelSize * (1 + 0.5 * (0.5 + 0.5 * Math.sin(t * 0.15 + 1.2) * Math.sin(t * 0.09 + 3.1)));
+    if (u.pixelSize.value !== pixelNow) u.pixelSize.value = pixelNow;
 
-    if (!prevColor.current.every((v, i) => v === waveColor[i])) {
-      u.waveColor.value.set(...waveColor);
-      prevColor.current = [...waveColor];
-    }
+    // 颜色强度在基准色附近独立周期波动（±15%，周期与频率/颗粒度不同）
+    const intensity = 1 + 0.15 * Math.sin(t * 0.18 + 0.5) * Math.sin(t * 0.07 + 2.2);
+    u.waveColor.value.set(waveColor[0] * intensity, waveColor[1] * intensity, waveColor[2] * intensity);
 
     u.enableMouseInteraction.value = enableMouseInteraction ? 1 : 0;
     u.mouseRadius.value = mouseRadius;
@@ -211,6 +265,7 @@ function DitheredWaves({
     <mesh scale={[viewport.width, viewport.height, 1]}>
       <planeGeometry args={[1, 1]} />
       <shaderMaterial
+        ref={materialRef}
         vertexShader={waveVertexShader}
         fragmentShader={waveFragmentShader}
         uniforms={waveUniformsRef.current}

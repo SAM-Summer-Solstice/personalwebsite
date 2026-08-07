@@ -36,6 +36,32 @@ export default function Lanyard({
   lanyardWidth = 1,
 }) {
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  // 3D 初始化与页面首帧错峰：rAF 一帧让布局稳定，再用 requestIdleCallback 在浏览器空闲时
+  // 挂载 Canvas（GLB 解析 / rapier / Environment 初始化避开切页入场动画帧）；无 rIC 时短延迟兜底
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    let cancelFn = null
+    requestAnimationFrame(() => {
+      if (!alive) return
+      if (typeof window.requestIdleCallback === 'function') {
+        const id = window.requestIdleCallback(() => {
+          if (alive) setMounted(true)
+        }, { timeout: 800 })
+        cancelFn = () => window.cancelIdleCallback(id)
+      } else {
+        const t = window.setTimeout(() => {
+          if (alive) setMounted(true)
+        }, 250)
+        cancelFn = () => window.clearTimeout(t)
+      }
+    })
+    return () => {
+      alive = false
+      if (cancelFn) cancelFn()
+    }
+  }, [])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -45,54 +71,58 @@ export default function Lanyard({
 
   return (
     <div className="lanyard-wrapper">
-      <Canvas
-        camera={{ position: position, fov: fov }}
-        dpr={[1, isMobile ? 1.5 : 2]}
-        gl={{ alpha: transparent }}
-        onCreated={({ gl }) => gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1)}
-      >
-        <ambientLight intensity={Math.PI} />
-        <Physics gravity={gravity} timeStep={isMobile ? 1 / 30 : 1 / 60}>
-          <Band
-            isMobile={isMobile}
-            frontImage={frontImage}
-            backImage={backImage}
-            imageFit={imageFit}
-            lanyardImage={lanyardImage}
-            lanyardWidth={lanyardWidth}
-          />
-        </Physics>
-        <Environment blur={0.75}>
-          <Lightformer
-            intensity={2}
-            color="white"
-            position={[0, -1, 5]}
-            rotation={[0, 0, Math.PI / 3]}
-            scale={[100, 0.1, 1]}
-          />
-          <Lightformer
-            intensity={3}
-            color="white"
-            position={[-1, -1, 1]}
-            rotation={[0, 0, Math.PI / 3]}
-            scale={[100, 0.1, 1]}
-          />
-          <Lightformer
-            intensity={3}
-            color="white"
-            position={[1, 1, 1]}
-            rotation={[0, 0, Math.PI / 3]}
-            scale={[100, 0.1, 1]}
-          />
-          <Lightformer
-            intensity={10}
-            color="white"
-            position={[-10, 0, 14]}
-            rotation={[0, Math.PI / 2, Math.PI / 3]}
-            scale={[100, 10, 1]}
-          />
-        </Environment>
-      </Canvas>
+      {mounted ? (
+        <Canvas
+          camera={{ position: position, fov: fov }}
+          dpr={[1, 1.5]} // 上限 1.5：全屏高画布像素从 4 倍降到 2.25 倍，GPU 压力大减
+          gl={{ alpha: transparent }}
+          onCreated={({ gl }) => gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1)}
+        >
+          <ambientLight intensity={Math.PI} />
+          <Physics gravity={gravity} timeStep={isMobile ? 1 / 30 : 1 / 60}>
+            <Band
+              isMobile={isMobile}
+              frontImage={frontImage}
+              backImage={backImage}
+              imageFit={imageFit}
+              lanyardImage={lanyardImage}
+              lanyardWidth={lanyardWidth}
+            />
+          </Physics>
+          <Environment blur={0.75}>
+            <Lightformer
+              intensity={2}
+              color="white"
+              position={[0, -1, 5]}
+              rotation={[0, 0, Math.PI / 3]}
+              scale={[100, 0.1, 1]}
+            />
+            <Lightformer
+              intensity={3}
+              color="white"
+              position={[-1, -1, 1]}
+              rotation={[0, 0, Math.PI / 3]}
+              scale={[100, 0.1, 1]}
+            />
+            <Lightformer
+              intensity={3}
+              color="white"
+              position={[1, 1, 1]}
+              rotation={[0, 0, Math.PI / 3]}
+              scale={[100, 0.1, 1]}
+            />
+            <Lightformer
+              intensity={10}
+              color="white"
+              position={[-10, 0, 14]}
+              rotation={[0, Math.PI / 2, Math.PI / 3]}
+              scale={[100, 10, 1]}
+            />
+          </Environment>
+        </Canvas>
+      ) : (
+        <div className="lanyard-loading" aria-hidden="true" />
+      )}
     </div>
   )
 }

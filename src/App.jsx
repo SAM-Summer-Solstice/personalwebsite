@@ -1,17 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Navbar from './components/Navbar.jsx'
 import ContentArea from './components/ContentArea.jsx'
 import Terminal from './components/Terminal.jsx'
 import EasterEggs from './components/EasterEggs.jsx'
 import Dither from './components/Dither.jsx'
+import { startPreload } from './preload.js'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home') // 'home' | 'blog' | 'projects' | 'about'
   const [focusId, setFocusId] = useState(null) // 从首页跳转时选中的条目 id，用于目标页高亮提示
+  const [navTick, setNavTick] = useState(0) // 重复点击当前 tab 的信号，用于让该页重置（如 posts 单篇返回列表）
   const [confettiKey, setConfettiKey] = useState(0) // >0 时播放彩带，自增重播
   const [birthday, setBirthday] = useState(false)
   const [starfield, setStarfield] = useState(false)
   const [matrix, setMatrix] = useState(false)
+
+  // 页面加载后空闲预取 3D 相关资源（仅一次），进入 projects/about 无网络等待
+  useEffect(() => {
+    startPreload()
+  }, [])
 
   function handleEasterEgg(type) {
     if (type === 'confetti') setConfettiKey((k) => k + 1)
@@ -24,6 +31,8 @@ export default function App() {
   function handleNavigate(tab, id) {
     setActiveTab(tab)
     setFocusId(id || null)
+    // 重复点击当前 tab（如 posts 单篇页再点 posts）→ 触发该页重置（返回列表）
+    if (!id && tab === activeTab) setNavTick((n) => n + 1)
   }
 
   function handleOverlayDone(kind) {
@@ -42,13 +51,18 @@ export default function App() {
           colorNum={25}
           waveAmplitude={0.31}
           waveFrequency={4.3}
-          waveSpeed={0.45}
+          waveSpeed={0.05}
         />
       </div>
       <div className="app">
         <Navbar activeTab={activeTab} onNavigate={handleNavigate} />
-        <ContentArea activeTab={activeTab} onNavigate={handleNavigate} focusId={focusId} />
-        <Terminal onNavigate={handleNavigate} onEasterEgg={handleEasterEgg} matrixActive={matrix} />
+        <ContentArea
+          activeTab={activeTab}
+          onNavigate={handleNavigate}
+          focusId={focusId}
+          resetSignal={navTick}
+        />
+        <Terminal activeTab={activeTab} onNavigate={handleNavigate} onEasterEgg={handleEasterEgg} matrixActive={matrix} />
         <EasterEggs
           confettiKey={confettiKey}
           birthday={birthday}

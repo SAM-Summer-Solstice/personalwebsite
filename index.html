@@ -13,6 +13,10 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 标记 JS 已运行：动效的初始隐藏态只在 JS 确认存活后注入（fail-open——脚本失败时内容始终可见）
+      document.documentElement.classList.add('has-js');
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

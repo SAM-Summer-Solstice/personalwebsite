@@ -9,3 +9,9 @@
   transform: scale(1);
   transform-origin: center;
 }
+
+/* 3D 初始化错峰期间的占位：与画布同尺寸，透明不产生灰块 */
+.lanyard-loading {
+  width: 100%;
+  height: 100%;
+}

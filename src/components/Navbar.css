@@ -16,7 +16,7 @@
 
 .navbar-inner {
   width: 100%;
-  max-width: 1700px;
+  max-width: min(1700px, calc(100vw - 96px)); /* 与版心对齐，任意视口下左右至少留 48px */
   margin: 0 auto;
   padding: 0 24px;
   display: flex;

@@ -1,18 +1,20 @@
+import { lazy, Suspense } from 'react'
 import { about } from '../../data/about.js'
-import Lanyard from '../Lanyard.jsx'
+// Lanyard（drei + rapier + meshline + GLB）较重，仅进入 about 页时按需加载
+const Lanyard = lazy(() => import('../Lanyard.jsx'))
 
 export default function AboutSection() {
   return (
     <section aria-label="关于">
       <div className="about-layout">
-        <div className="about-main">
+        <div className="about-main" data-stagger data-stagger-limit="8">
           <header className="section-head">
-            <h2 className="section-title mono">~/about</h2>
+            <h2 className="section-title mono" data-reveal-title>~/about</h2>
             <p className="section-desc">关于我，以及这个博客为什么存在。</p>
           </header>
 
           <div className="about-header">
-            <h3 className="about-name">{about.name}</h3>
+            <h3 className="about-name" data-reveal-title>{about.name}</h3>
             <p className="about-meta">
               {about.school} · {about.grade} · 出生于
               <span className="mono"> {about.birthYear} </span>
@@ -81,7 +83,9 @@ export default function AboutSection() {
         </div>
 
         <aside className="about-side" aria-label="3D 挂绳吊牌">
-          <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+          <Suspense fallback={<div className="about-side-placeholder" aria-hidden="true" />}>
+            <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+          </Suspense>
         </aside>
       </div>
     </section>

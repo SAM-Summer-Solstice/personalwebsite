@@ -4,7 +4,7 @@
 //   - 默认不显示名称：悬停节点时显示 tooltip
 //   - TrackballControls：按住拖拽像拧动星图，任意方向旋转（含翻转）、带阻尼惯性、滚轮缩放、不可平移；自转：绕随时间漂移的旋转轴翻滚（始终运行）
 // 窄屏（≤768px）降级：隐藏 3D，仅展示一行项目名
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { TrackballControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -140,12 +140,66 @@ function NetworkScene({ projects, showLabels }) {
 }
 
 export default function ProjectsNetwork({ projects, showLabels }) {
+  const containerRef = useRef(null)
+  const [inView, setInView] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [ready, setReady] = useState(false) // Canvas 就绪（WebGL 上下文创建）后淡入，掩盖初始化瞬间
+
+  // 可视才挂载：容器进入 .content-area 视口才准备初始化 Canvas（占位同尺寸，布局不跳动）
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const root = document.querySelector('.content-area')
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach((entry) => entry.isIntersecting && setInView(true)),
+      { root, threshold: 0 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // 可见后错峰挂载：rAF 一帧让页面布局稳定，再用 requestIdleCallback 在浏览器空闲时初始化 WebGL
+  // （天然避开页面入场动画的帧，避免"星空图出现瞬间长任务"卡顿）；无 rIC 时短延迟兜底
+  useEffect(() => {
+    if (!inView) return
+    let alive = true
+    let cancelFn = null
+    requestAnimationFrame(() => {
+      if (!alive) return
+      if (typeof window.requestIdleCallback === 'function') {
+        const id = window.requestIdleCallback(() => {
+          if (alive) setMounted(true)
+        }, { timeout: 800 })
+        cancelFn = () => window.cancelIdleCallback(id)
+      } else {
+        const t = window.setTimeout(() => {
+          if (alive) setMounted(true)
+        }, 250)
+        cancelFn = () => window.clearTimeout(t)
+      }
+    })
+    return () => {
+      alive = false
+      if (cancelFn) cancelFn()
+    }
+  }, [inView])
+
   return (
-    <div className="projects-network">
-      <div className="network-3d" role="img" aria-label="项目之间的关联关系网络（拖拽旋转，滚轮缩放，悬停节点显示名称）">
-        <Canvas camera={{ position: [0, 0, 6.5], fov: 45 }} dpr={[1, 2]}>
-          <NetworkScene projects={projects} showLabels={showLabels} />
-        </Canvas>
+    <div className="projects-network" ref={containerRef}>
+      <div
+        className={`network-3d${ready ? ' is-ready' : ''}`}
+        role="img"
+        aria-label="项目之间的关联关系网络（拖拽旋转，滚轮缩放，悬停节点显示名称）"
+      >
+        {mounted ? (
+          <Canvas
+            camera={{ position: [0, 0, 8.2], fov: 45 }}
+            dpr={[1, 1.5]} // 上限 1.5：星图以线条/节点为主，像素减半视觉无感，GPU 压力大减
+            onCreated={() => setReady(true)}
+          >
+            <NetworkScene projects={projects} showLabels={showLabels} />
+          </Canvas>
+        ) : null}
       </div>
 
       {/* 窄屏降级：只留一行项目名 */}

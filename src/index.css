@@ -44,6 +44,8 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* 固定滚动条槽位：内容变短、滚动条消失时布局不左右跳动 */
+  scrollbar-gutter: stable;
 }
 
 .terminal {

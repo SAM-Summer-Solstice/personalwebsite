@@ -608,59 +608,45 @@
   text-underline-offset: 3px;
 }
 
-/* ============ 项目：知识网络（SVG） ============ */
+/* ============ 项目：知识网络（3D 星图） ============ */
 .projects-network {
-  margin-bottom: 36px;
+  margin-bottom: 40px;
 }
 
-.network-svg {
-  display: block;
-  width: 100%;
-  height: auto;
+.network-3d {
+  height: 380px;
   max-width: 780px;
   margin: 0 auto;
+  cursor: grab;
 }
 
-/* 连线：底边发丝线 + 流动虚线叠加，表达"动态连接" */
-.network-link-base {
-  stroke: var(--border);
-  stroke-width: 1.5;
+.network-3d:active {
+  cursor: grabbing;
 }
 
-.network-link-flow {
-  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
-  stroke-width: 1.5;
-  stroke-dasharray: 7 11;
-  animation: network-flow 1.4s linear infinite;
-}
-
-@keyframes network-flow {
-  to {
-    stroke-dashoffset: -18;
-  }
-}
-
-.network-node circle {
-  fill: var(--bg);
-  stroke: var(--border);
-  stroke-width: 1.5;
-}
-
-.network-node text {
-  font-size: 12px;
-  fill: var(--text);
-  text-anchor: middle;
+/* 悬停节点时显示的名称 tooltip */
+.network-tooltip {
+  display: block;
+  padding: 5px 12px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-soft) 95%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   pointer-events: none;
   user-select: none;
 }
 
-/* 窄屏降级：隐藏连线 SVG，只留一行节点 */
+/* 窄屏降级：隐藏 3D，只留一行项目名 */
 .network-inline {
   display: none;
 }
 
 @media (max-width: 768px) {
-  .network-svg {
+  .network-3d {
     display: none;
   }
   .network-inline {
@@ -672,13 +658,6 @@
   }
   .network-inline-node {
     white-space: nowrap;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .network-link-flow {
-    animation: none;
-    stroke-dasharray: none;
   }
 }
 

@@ -177,6 +177,8 @@ function Band({
   )
   const [dragged, drag] = useState(false)
   const [hovered, hover] = useState(false)
+  // 每次进入页面吊牌从正上方附近随机水平落点刷新，避免固定在右上角
+  const [dropOffset] = useState(() => Math.random() * 1.6 - 0.8)
 
   useRopeJoint(fixed, j1, [
     [0, 0, 0],
@@ -238,7 +240,7 @@ function Band({
 
   return (
     <>
-      <group position={[0, 4, 0]}>
+      <group position={[dropOffset, 4, 0]}>
         <RigidBody ref={fixed} {...segmentProps} type="fixed" />
         <RigidBody position={[0.5, 0, 0]} ref={j1} {...segmentProps}>
           <BallCollider args={[0.1]} />

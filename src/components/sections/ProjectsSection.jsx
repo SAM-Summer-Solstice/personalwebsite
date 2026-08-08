@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { projects } from '../../data/projects.js'
+import { useProjects } from '../../data/useContent.js'
 // ProjectsNetwork（three + drei TrackballControls）较重，仅进入 projects 页时按需加载
 const ProjectsNetwork = lazy(() => import('./ProjectsNetwork.jsx'))
 
@@ -62,6 +62,8 @@ function ProjectItem({ project, focused }) {
 }
 
 export default function ProjectsSection({ focusId }) {
+  // 数据由 API 提供；loading 期间为空数组（星图与列表为空），排序逻辑保留
+  const { projects } = useProjects()
   const [flashId, setFlashId] = useState(null) // 短暂高亮中的条目 id
   const [showLabels, setShowLabels] = useState(false) // 3D 星图全部节点名称常显开关
   const overviewRef = useRef(null)
@@ -96,7 +98,7 @@ export default function ProjectsSection({ focusId }) {
   // 按日期从新到旧排序
   const sorted = [...projects].sort((a, b) => new Date(b.date) - new Date(a.date))
 
-  // 概览侧栏数据：状态计数 / 技术栈聚合 / 最近在做
+  // 概览侧栏数据：状态计数 / 技术栈聚合 / 最近在做（数据未就绪时兜底为空）
   const doneCount = projects.filter((p) => p.status === '已完成').length
   const doingCount = projects.filter((p) => p.status === '进行中').length
   const planningCount = projects.filter((p) => p.status === '规划中').length
@@ -161,8 +163,8 @@ export default function ProjectsSection({ focusId }) {
 
           <div className="overview-block">
             <h4 className="overview-label mono">now</h4>
-            <p className="overview-now mono">{latest.name}</p>
-            <p className="overview-now-tag">{latest.tagline}</p>
+            <p className="overview-now mono">{latest?.name}</p>
+            <p className="overview-now-tag">{latest?.tagline}</p>
           </div>
         </aside>
       </div>

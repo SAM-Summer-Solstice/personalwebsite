@@ -31,7 +31,7 @@ function typeDelay(total) {
   return Math.max(4, Math.min(25, Math.round(ms)))
 }
 
-export default function Terminal({ activeTab, onNavigate, onEasterEgg, matrixActive }) {
+export default function Terminal({ activeTab, onNavigate, onEasterEgg, matrixActive, posts = [], projects = [], about = null }) {
   const [cwd, setCwd] = useState('~')
   const [blocks, setBlocks] = useState([])
   const [typing, setTyping] = useState(null) // { id, total, typed }
@@ -173,6 +173,9 @@ export default function Terminal({ activeTab, onNavigate, onEasterEgg, matrixAct
       cwd,
       setCwd,
       history: nextHistory,
+      posts,
+      projects,
+      about,
       onNavigate,
       onEasterEgg,
       matrixActive,

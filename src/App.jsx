@@ -1,19 +1,46 @@
 import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import Navbar from './components/Navbar.jsx'
 import ContentArea from './components/ContentArea.jsx'
 import Terminal from './components/Terminal.jsx'
 import EasterEggs from './components/EasterEggs.jsx'
 import Dither from './components/Dither.jsx'
 import { startPreload } from './preload.js'
+import { usePosts, useProjects, useAbout } from './data/useContent.js'
+
+// URL 路径 → 页面 tab（blog 单篇 /posts/:id 也归入 blog）
+function pathToTab(pathname) {
+  if (pathname === '/') return 'home'
+  if (pathname.startsWith('/posts')) return 'blog'
+  if (pathname.startsWith('/projects')) return 'projects'
+  if (pathname.startsWith('/about')) return 'about'
+  return 'home'
+}
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home') // 'home' | 'blog' | 'projects' | 'about'
-  const [focusId, setFocusId] = useState(null) // 从首页跳转时选中的条目 id，用于目标页高亮提示
-  const [navTick, setNavTick] = useState(0) // 重复点击当前 tab 的信号，用于让该页重置（如 posts 单篇返回列表）
+  return (
+    <BrowserRouter>
+      <AppShell />
+    </BrowserRouter>
+  )
+}
+
+function AppShell() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [navTick, setNavTick] = useState(0) // 重复点击当前 tab → 重置信号（保留原语义）
   const [confettiKey, setConfettiKey] = useState(0) // >0 时播放彩带，自增重播
   const [birthday, setBirthday] = useState(false)
   const [starfield, setStarfield] = useState(false)
   const [matrix, setMatrix] = useState(false)
+  const activeTab = pathToTab(location.pathname)
+  // 从首页跳转选中条目时带上的高亮 id（projects 用；blog 单篇由 /posts/:id 表达）
+  const focusId = location.state?.focusId || null
+
+  // 终端命令所需数据：未加载完成时为空，命令同样不崩溃
+  const { posts } = usePosts()
+  const { projects } = useProjects()
+  const { about } = useAbout()
 
   // 页面加载后空闲预取 3D 相关资源（仅一次），进入 projects/about 无网络等待
   useEffect(() => {
@@ -27,17 +54,25 @@ export default function App() {
     else if (type === 'matrix') setMatrix((m) => !m)
   }
 
-  // 统一导航入口：普通跳转只传 tab；从首页选中条目跳转时附带上该条 id
-  function handleNavigate(tab, id) {
-    setActiveTab(tab)
-    setFocusId(id || null)
-    // 重复点击当前 tab（如 posts 单篇页再点 posts）→ 触发该页重置（返回列表）
-    if (!id && tab === activeTab) setNavTick((n) => n + 1)
-  }
-
   function handleOverlayDone(kind) {
     if (kind === 'confetti') setConfettiKey(0)
     else if (kind === 'birthday') setBirthday(false)
+  }
+
+  // tab/id → 路径。blog 带 id → /posts/:id；其余 → /posts /projects /about /
+  function tabToPath(tab, id) {
+    if (tab === 'blog') return id ? `/posts/${id}` : '/posts'
+    if (tab === 'projects') return '/projects'
+    if (tab === 'about') return '/about'
+    return '/'
+  }
+
+  // 统一导航入口：普通跳转只传 tab；从首页选中条目跳转时附带上该条 id
+  function handleNavigate(tab, id) {
+    const target = tabToPath(tab, id)
+    // 重复点击当前 tab（已是目标路径且无 id）→ 触发该页重置信号
+    if (location.pathname === target && !id) setNavTick((n) => n + 1)
+    navigate(target, { state: id && tab === 'projects' ? { focusId: id } : undefined })
   }
 
   return (
@@ -56,13 +91,40 @@ export default function App() {
       </div>
       <div className="app">
         <Navbar activeTab={activeTab} onNavigate={handleNavigate} />
-        <ContentArea
+        {/* 路由包裹：/posts/:postId 使 BlogSection 的 useParams 取到 postId；其余路径统一走 * */}
+        <Routes>
+          <Route
+            path="/posts/:postId"
+            element={
+              <ContentArea
+                activeTab={activeTab}
+                onNavigate={handleNavigate}
+                focusId={focusId}
+                resetSignal={navTick}
+              />
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <ContentArea
+                activeTab={activeTab}
+                onNavigate={handleNavigate}
+                focusId={focusId}
+                resetSignal={navTick}
+              />
+            }
+          />
+        </Routes>
+        <Terminal
           activeTab={activeTab}
           onNavigate={handleNavigate}
-          focusId={focusId}
-          resetSignal={navTick}
+          onEasterEgg={handleEasterEgg}
+          matrixActive={matrix}
+          posts={posts}
+          projects={projects}
+          about={about}
         />
-        <Terminal activeTab={activeTab} onNavigate={handleNavigate} onEasterEgg={handleEasterEgg} matrixActive={matrix} />
         <EasterEggs
           confettiKey={confettiKey}
           birthday={birthday}

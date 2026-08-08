@@ -1,12 +1,15 @@
-import { about } from '../../data/about.js'
-import { posts } from '../../data/posts.js'
-import { projects } from '../../data/projects.js'
+import { useAbout, usePosts, useProjects } from '../../data/useContent.js'
 import './HomeSection.css'
 
-const recentPosts = posts.slice(0, 3)
-const featuredProjects = projects.slice(0, 3)
-
 export default function HomeSection({ onNavigate }) {
+  // 数据由 API 提供；loading 期间为空数组 / null，组件结构不变
+  const { posts } = usePosts()
+  const { projects } = useProjects()
+  const { about } = useAbout()
+  const recentPosts = posts.slice(0, 3)
+  const featuredProjects = projects.slice(0, 3)
+  const a = about || {} // 加载中降级为空对象，避免访问字段报错
+
   return (
     <section className="home-section" aria-label="首页">
 
@@ -17,15 +20,15 @@ export default function HomeSection({ onNavigate }) {
 
       <div className="home-hero">
         <h1 className="home-name">
-          {about.name}
+          {a.name}
           <span className="home-cursor" aria-hidden="true">▍</span>
         </h1>
         <p className="home-meta mono">
-          {about.school} · {about.grade} · 出生于 {about.birthYear} 年
+          {a.school} · {a.grade} · 出生于 {a.birthYear} 年
         </p>
-        <p className="home-desc">{about.intro[0]}</p>
+        <p className="home-desc">{(a.intro || [])[0]}</p>
         <div className="home-chips">
-          {about.directions.map((dir) => (
+          {(a.directions || []).map((dir) => (
             <span key={dir} className="home-chip mono">{dir}</span>
           ))}
         </div>
@@ -73,7 +76,7 @@ export default function HomeSection({ onNavigate }) {
       </div>
 
       <footer className="home-contact mono" data-reveal>
-        {about.contact.email} · {about.contact.github} · {about.contact.location}
+        {a.contact?.email} · {a.contact?.github} · {a.contact?.location}
       </footer>
     </section>
   )

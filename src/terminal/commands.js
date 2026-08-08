@@ -1,13 +1,10 @@
 // 命令引擎：runCommand(raw, ctx) => { lines, effect }
-// ctx: { cwd, setCwd, history, onNavigate?, onEasterEgg?, matrixActive? }
+// ctx: { cwd, setCwd, history, posts, projects, about, onNavigate?, onEasterEgg?, matrixActive? }
 // lines 每行: { text, cls }（cls: normal|muted|accent|accent2|error|success|cmd|cmdline）
 //          或 { table: [[列头], [行], ...] }
 // effect: { navigate?: 'home'|'blog'|'projects'|'about',
 //           easterEgg?: 'confetti'|'birthday'|'starfield'|'matrix', clear?: true }
-import { posts } from '../data/posts.js'
-import { projects } from '../data/projects.js'
-import { about } from '../data/about.js'
-
+// posts/projects/about 由调用方（Terminal）通过 ctx 注入；数据未就绪时为空数组 / null，命令不崩溃。
 const SESSION_START = Date.now()
 
 const DIRS = {
@@ -26,26 +23,30 @@ const FORTUNES = [
   '凌晨三点的实验室，键盘声是最好的白噪音。',
 ]
 
-const FILES = {
-  'readme.md': [
-    { text: '~/blog 是一个「混合终端」个人博客：上面是内容，下面是真终端。', cls: 'normal' },
-    { text: '记录我在机器人、运动控制与具身智能路上的折腾、踩坑与顿悟。', cls: 'muted' },
-    { text: '想要快速上手？输入 help 看看。', cls: 'muted' },
-  ],
-  'contact.txt': [
-    { text: `邮箱：${about.contact.email}`, cls: 'normal' },
-    { text: `GitHub：${about.contact.github}`, cls: 'normal' },
-    { text: `城市：${about.contact.location}`, cls: 'normal' },
-  ],
-  'love_letter.txt': [
-    { text: '亲爱的陌生人：', cls: 'normal' },
-    { text: '', cls: 'normal' },
-    { text: '如果你一路走到了这里，说明你还有好奇心。', cls: 'normal' },
-    { text: '愿你的每一个 PID 都能收敛，愿你的每一个倒立摆都能站稳，', cls: 'normal' },
-    { text: '愿你在深夜调试代码时，总有一盏灯为你亮着。', cls: 'normal' },
-    { text: '', cls: 'normal' },
-    { text: '—— xzx', cls: 'muted' },
-  ],
+// 文件内容：contact.txt 依赖 about 数据（由 ctx 注入），其余为静态内容
+function getFiles(about) {
+  const contact = about?.contact || {}
+  return {
+    'readme.md': [
+      { text: '~/blog 是一个「混合终端」个人博客：上面是内容，下面是真终端。', cls: 'normal' },
+      { text: '记录我在机器人、运动控制与具身智能路上的折腾、踩坑与顿悟。', cls: 'muted' },
+      { text: '想要快速上手？输入 help 看看。', cls: 'muted' },
+    ],
+    'contact.txt': [
+      { text: `邮箱：${contact.email || ''}`, cls: 'normal' },
+      { text: `GitHub：${contact.github || ''}`, cls: 'normal' },
+      { text: `城市：${contact.location || ''}`, cls: 'normal' },
+    ],
+    'love_letter.txt': [
+      { text: '亲爱的陌生人：', cls: 'normal' },
+      { text: '', cls: 'normal' },
+      { text: '如果你一路走到了这里，说明你还有好奇心。', cls: 'normal' },
+      { text: '愿你的每一个 PID 都能收敛，愿你的每一个倒立摆都能站稳，', cls: 'normal' },
+      { text: '愿你在深夜调试代码时，总有一盏灯为你亮着。', cls: 'normal' },
+      { text: '', cls: 'normal' },
+      { text: '—— xzx', cls: 'muted' },
+    ],
+  }
 }
 
 // 粗略的显示宽度（CJK 按 2 个半角字符算），用于 cowsay 对齐
@@ -154,22 +155,24 @@ function aboutCmd() {
   }
 }
 
-function projectsCmd() {
+function projectsCmd(arg, ctx) {
+  const list = ctx.projects || []
   return {
     lines: [
-      { text: `共 ${projects.length} 个项目：`, cls: 'muted' },
-      ...projects.map((p) => ({ text: `  ${p.emoji} ${p.name} — ${p.tagline}`, cls: 'normal' })),
+      { text: `共 ${list.length} 个项目：`, cls: 'muted' },
+      ...list.map((p) => ({ text: `  ${p.emoji} ${p.name} — ${p.tagline}`, cls: 'normal' })),
       { text: '（已为你打开「项目」页）', cls: 'success' },
     ],
     effect: { navigate: 'projects' },
   }
 }
 
-function postsCmd() {
+function postsCmd(arg, ctx) {
+  const list = ctx.posts || []
   return {
     lines: [
-      { text: `共 ${posts.length} 篇文章：`, cls: 'muted' },
-      ...posts.map((p) => ({ text: `  ${p.date}  ${p.title}`, cls: 'normal' })),
+      { text: `共 ${list.length} 篇文章：`, cls: 'muted' },
+      ...list.map((p) => ({ text: `  ${p.date}  ${p.title}`, cls: 'normal' })),
       { text: '（已为你打开「日志」页）', cls: 'success' },
     ],
     effect: { navigate: 'blog' },
@@ -183,7 +186,9 @@ function homeCmd() {
   }
 }
 
-function contactCmd() {
+function contactCmd(arg, ctx) {
+  const about = ctx.about
+  if (!about) return { lines: [{ text: '数据加载中，稍后再试', cls: 'muted' }] }
   return {
     lines: [
       { text: `  邮箱：${about.contact.email}`, cls: 'normal' },
@@ -195,11 +200,15 @@ function contactCmd() {
   }
 }
 
-function emailCmd() {
+function emailCmd(arg, ctx) {
+  const about = ctx.about
+  if (!about) return { lines: [{ text: '数据加载中，稍后再试', cls: 'muted' }] }
   return { lines: [{ text: `📧 ${about.contact.email}`, cls: 'accent2' }] }
 }
 
-function githubCmd() {
+function githubCmd(arg, ctx) {
+  const about = ctx.about
+  if (!about) return { lines: [{ text: '数据加载中，稍后再试', cls: 'muted' }] }
   return { lines: [{ text: `🐙 ${about.contact.github}`, cls: 'accent2' }] }
 }
 
@@ -249,8 +258,8 @@ function lsCmd(arg, ctx) {
       { text: '  readme.md', cls: 'muted' },
       { text: '  contact.txt', cls: 'muted' },
     ],
-    '~/posts': posts.map((p) => ({ text: `  📄 ${p.title}`, cls: 'muted' })),
-    '~/projects': projects.map((p) => ({ text: `  📦 ${p.name}`, cls: 'muted' })),
+    '~/posts': (ctx.posts || []).map((p) => ({ text: `  📄 ${p.title}`, cls: 'muted' })),
+    '~/projects': (ctx.projects || []).map((p) => ({ text: `  📦 ${p.name}`, cls: 'muted' })),
     '~/about': [
       { text: '  README.md', cls: 'muted' },
       { text: '  contact.txt', cls: 'muted' },
@@ -265,7 +274,7 @@ function pwdCmd(arg, ctx) {
   return { lines: [{ text: ctx.cwd || '~', cls: 'accent2' }] }
 }
 
-function catCmd(arg) {
+function catCmd(arg, ctx) {
   const f = arg.trim()
   if (!f) {
     return { lines: [{ text: '用法：cat <file>（试试 readme.md）', cls: 'error' }] }
@@ -273,7 +282,8 @@ function catCmd(arg) {
   if (f === '/dev/brain') {
     return { lines: [{ text: '/dev/brain: 设备忙，当前脑容量已被 PID 参数占用 80%', cls: 'muted' }] }
   }
-  if (FILES[f]) return { lines: FILES[f] }
+  const files = getFiles(ctx.about)
+  if (files[f]) return { lines: files[f] }
   return {
     lines: [
       { text: `cat: ${f}: 没有这个文件`, cls: 'error' },

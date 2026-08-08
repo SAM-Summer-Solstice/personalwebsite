@@ -5,9 +5,9 @@ export default defineConfig({
   plugins: [react()],
   assetsInclude: ['**/*.glb'],
   server: {
-    // 开发环境把 /api 代理到本地浏览量服务（npm run server）
+    // 开发环境把 /api 代理到本地 Django API（http://127.0.0.1:8000）
     proxy: {
-      '/api': 'http://localhost:3210',
+      '/api': 'http://localhost:8000',
     },
   },
 })

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_simplejwt",
     "markdownx",
     "content",
 ]
@@ -131,3 +132,18 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # 前端 React 构建产物目录（Vite build 输出 dist/）
 REACT_DIST = BASE_DIR.parent.parent / "dist"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+}
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),  # 个人站：access 有效期放宽，避免频繁刷新
+}
+
+# markdownx 上传：允许图片 + 视频（后台编辑器插入视频）
+MARKDOWNX_MEDIA_PATH = "markdownx/"
+MARKDOWNX_UPLOAD_CONTENT_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/ogg"]
+MARKDOWNX_UPLOAD_MAX_SIZE = 150 * 1024 * 1024

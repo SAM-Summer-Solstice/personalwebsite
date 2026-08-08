@@ -5,6 +5,8 @@ import ContentArea from './components/ContentArea.jsx'
 import Terminal from './components/Terminal.jsx'
 import EasterEggs from './components/EasterEggs.jsx'
 import Dither from './components/Dither.jsx'
+import AuthModal from './components/AuthModal.jsx'
+import { AuthProvider } from './auth/AuthContext.jsx'
 import { startPreload } from './preload.js'
 import { usePosts, useProjects, useAbout } from './data/useContent.js'
 
@@ -20,7 +22,9 @@ function pathToTab(pathname) {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppShell />
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
     </BrowserRouter>
   )
 }
@@ -133,6 +137,8 @@ function AppShell() {
           onOverlayDone={handleOverlayDone}
         />
       </div>
+      {/* 登录 / 注册弹窗：全局单例，由 AuthContext 的 authOpen 控制显隐 */}
+      <AuthModal />
     </>
   )
 }

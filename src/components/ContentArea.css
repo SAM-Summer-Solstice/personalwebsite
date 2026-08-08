@@ -642,19 +642,225 @@
   border-top: 1px solid var(--border);
 }
 
-/* ============ 日志：评论区（Giscus / 未配置提示） ============ */
+/* ============ 日志：附件下载区 ============ */
+.blog-attachments {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.blog-attachments-title {
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.blog-attachments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.blog-attachment {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.blog-attachment-icon {
+  width: 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.blog-attachment-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border);
+  overflow-wrap: anywhere;
+  transition: color 0.15s ease, border-bottom-color 0.15s ease;
+}
+
+.blog-attachment-link:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.blog-attachment-size {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ 日志：评论区（自建评论：列表 + 发表框） ============ */
 .blog-comments-area {
   margin-top: 40px;
   padding-top: 26px;
   border-top: 1px solid var(--border);
 }
 
-.blog-giscus-hint {
+.blog-comments-title {
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-bottom: 14px;
+}
+
+.blog-comments-empty {
   margin: 0;
   font-size: 15px;
   line-height: 1.8;
   color: var(--text-muted);
   max-width: 860px;
+}
+
+.blog-comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.blog-comment {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.blog-comment:last-child {
+  border-bottom: none;
+}
+
+.blog-comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.blog-comment-author {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.blog-comment-author::before {
+  content: '@ ';
+  color: var(--accent-2);
+}
+
+.blog-comment-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.blog-comment-content {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text);
+  max-width: 860px;
+  white-space: pre-wrap; /* 保留评论中的换行 */
+  overflow-wrap: break-word;
+}
+
+/* 发表评论表单 */
+.blog-comment-form {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 640px;
+}
+
+.blog-comment-input {
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  resize: vertical;
+  min-height: 84px;
+  transition: border-color 0.2s ease;
+}
+
+.blog-comment-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.blog-comment-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.blog-comment-submit {
+  align-self: flex-start;
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 6px 18px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.blog-comment-submit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.blog-comment-submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* 未登录：登录提示 + 登录按钮 */
+.blog-comment-login {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.blog-comment-login-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 4px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.blog-comment-login-btn:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 /* ============ 项目：纯文字列表 ============ */

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from markdownx.models import MarkdownxField
 
@@ -11,6 +12,8 @@ class Post(models.Model):
     content = MarkdownxField("正文 Markdown")
     views = models.PositiveIntegerField("浏览量", default=0)
     likes = models.PositiveIntegerField("点赞数", default=0)
+    # 点赞用户集合（保留原 likes 数值字段作为计数基数）
+    liked_by = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="liked_posts")
     comments = models.JSONField("评论（预留）", default=list)
 
     class Meta:
@@ -38,6 +41,32 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Attachment(models.Model):
+    """帖子附件：文件上传到 media/attachments/，前台提供下载。"""
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to="attachments/")
+    name = models.CharField("显示名", max_length=255, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name or self.file.name
+
+
+class Comment(models.Model):
+    """帖子评论：登录用户发表，默认直接显示，后台可审核。"""
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="comments_set")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    content = models.TextField("内容")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField("已审核", default=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.author.username}: {self.content[:20]}"
 
 
 class About(models.Model):

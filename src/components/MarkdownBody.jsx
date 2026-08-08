@@ -78,8 +78,12 @@ export default function MarkdownBody({ postId, markdown, onHeadings }) {
       return `<a href="${href}"${t}>${text}</a>\n`
     }
 
-    // 图片：清理 alt 中的 markdown 标记，并懒加载；包 figure 容器以支持 reveal + 视差
+    // 图片 / 视频：视频扩展名（mp4/webm/ogg/mov）输出 <video>（保留 md-video 类样式），
+    // 其余保持图片逻辑：清理 alt 中的 markdown 标记，懒加载，包 figure 容器以支持 reveal + 视差
     renderer.image = function ({ href, title, text }) {
+      if (/\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(href)) {
+        return `<video class="md-video" controls preload="metadata"><source src="${href}"></video>\n`
+      }
       const alt = (text || '').replace(/[\\`*_[\]{}]/g, '')
       const t = title ? ` title="${title}"` : ''
       return `<figure class="md-figure"><img src="${href}"${t} alt="${alt}" loading="lazy" /></figure>\n`

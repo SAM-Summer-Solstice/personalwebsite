@@ -1,25 +1,52 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { usePosts, usePost } from '../../data/useContent.js'
-import { incrementViews } from '../../api.js'
-import { GISCUS_CONFIG, giscusConfigured } from '../../giscusConfig.js'
+import { incrementViews, toggleLike } from '../../api.js'
+import { useAuth } from '../../auth/AuthContext.jsx'
 import MarkdownBody from '../MarkdownBody.jsx'
-// Giscus 仅在单篇视图渲染评论时按需加载，避免进首屏主包
-const Giscus = lazy(() => import('@giscus/react'))
+import CommentSection from '../CommentSection.jsx'
 
-// 帖子信息行：浏览（列表数据自带 views，单篇计数成功后父组件传入 viewsOverride 覆盖）/ 评论入口 / 点赞（本地 +1，刷新恢复初始）
+// 附件图标：按 kind 给一个 mono 字符（image ▣ / video ▶ / file ↓）
+const KIND_ICON = { image: '▣', video: '▶', file: '↓' }
+
+// 附件大小格式化：B / KB / MB（保留一位小数）
+function formatSize(bytes) {
+  if (!bytes || bytes <= 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+// 附件下载地址：Django 返回绝对地址（http://...）或 /media/... 相对路径，
+// 相对路径拼当前 origin（生产环境 React 与 media 同源直达；dev 走 Vite 代理由后端托管）
+function resolveAttachmentUrl(file) {
+  if (/^https?:\/\//i.test(file)) return file
+  return window.location.origin + (file.startsWith('/') ? file : `/${file}`)
+}
+
+// 从 file 路径取文件名（att.name 为空时的兜底显示名）
+function fileNameFromPath(file) {
+  const name = String(file || '').split('/').pop()
+  return name || file || '附件'
+}
+
+// 帖子信息行：浏览（列表数据自带 views，单篇计数成功后父组件传入 viewsOverride 覆盖）/ 评论入口 / 点赞
+// 点赞：liked/likes 以 API 返回为准初始化；未登录点击弹登录窗，已登录调 toggleLike 切换并同步服务端结果
 // viewsOverride：单篇视图计数成功后由父组件传入的最新值，优先级最高
 function PostMeta({ post, viewsOverride, onOpen }) {
+  const { user, openAuth } = useAuth()
   const [likes, setLikes] = useState(post.likes)
-  const [liked, setLiked] = useState(false)
+  const [liked, setLiked] = useState(Boolean(post.liked))
 
-  function handleLike() {
-    if (liked) {
-      setLikes((n) => n - 1)
-      setLiked(false)
-    } else {
-      setLikes((n) => n + 1)
-      setLiked(true)
+  async function handleLike() {
+    if (!user) {
+      openAuth()
+      return
+    }
+    const data = await toggleLike(post.id)
+    if (data && typeof data.likes === 'number') {
+      setLikes(data.likes)
+      setLiked(Boolean(data.liked))
     }
   }
 
@@ -70,7 +97,7 @@ function BlogCard({ post, focused, onOpen }) {
   )
 }
 
-// 单篇视图：返回 / 大标题 / 日期标签 / Markdown 正文 / 帖子信息 / Giscus 评论区 + 右侧星点 TOC
+// 单篇视图：返回 / 大标题 / 日期标签 / Markdown 正文 / 附件下载区 / 帖子信息 / 自建评论区 + 右侧星点 TOC
 function BlogSingle({ post, onBack }) {
   const [headings, setHeadings] = useState([]) // MarkdownBody 收集的 h2，用于 TOC
   const [views, setViews] = useState(post.views) // 计数后的最新浏览量（失败保持 mock）
@@ -153,29 +180,32 @@ function BlogSingle({ post, onBack }) {
 
         <MarkdownBody postId={post.id} markdown={post.content} onHeadings={setHeadings} />
 
+        {/* 附件下载区：详情接口返回 attachments（非空才渲染），图标 + 中文名 + 大小 + 下载链接 */}
+        {post.attachments?.length > 0 && (
+          <section className="blog-attachments" aria-label="附件">
+            <h3 className="blog-attachments-title mono">附件</h3>
+            <ul className="blog-attachments-list">
+              {post.attachments.map((att) => (
+                <li key={att.id} className="blog-attachment">
+                  <span className="blog-attachment-icon mono">{KIND_ICON[att.kind] || '↓'}</span>
+                  <a
+                    className="blog-attachment-link"
+                    href={resolveAttachmentUrl(att.file)}
+                    download={att.name}
+                  >
+                    {att.name || fileNameFromPath(att.file)}
+                  </a>
+                  <span className="blog-attachment-size mono">{formatSize(att.size)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <PostMeta post={post} viewsOverride={views} />
 
         <div className="blog-comments-area">
-          {giscusConfigured ? (
-            <Suspense fallback={<p className="blog-giscus-hint">评论加载中…</p>}>
-              <Giscus
-                repo={GISCUS_CONFIG.repo}
-                repoId={GISCUS_CONFIG.repoId}
-                category={GISCUS_CONFIG.category}
-                categoryId={GISCUS_CONFIG.categoryId}
-                mapping={GISCUS_CONFIG.mapping}
-                reactionsEnabled={GISCUS_CONFIG.reactionsEnabled}
-                emitMetadata={GISCUS_CONFIG.emitMetadata}
-                inputPosition={GISCUS_CONFIG.inputPosition}
-                lang={GISCUS_CONFIG.lang}
-                theme={GISCUS_CONFIG.theme}
-              />
-            </Suspense>
-          ) : (
-            <p className="blog-giscus-hint">
-              评论功能需要将站点发布到公开 GitHub 仓库并配置 Giscus 后启用
-            </p>
-          )}
+          <CommentSection postId={post.id} />
         </div>
       </div>
 

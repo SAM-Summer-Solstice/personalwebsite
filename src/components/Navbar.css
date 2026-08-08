@@ -113,6 +113,47 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 右侧区：时钟 + 登录入口，成组靠右不散开 */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.navbar-user {
+  font-size: 13px;
+  color: var(--accent-2);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.navbar-auth-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.navbar-auth-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 @media (max-width: 768px) {
   .navbar-inner {
     padding: 0 12px;
@@ -130,6 +171,10 @@
     gap: 6px;
   }
   .navbar-clock-date {
+    display: none;
+  }
+  /* 窄屏隐藏用户名，只保留 登录/退出 按钮 */
+  .navbar-user {
     display: none;
   }
 }

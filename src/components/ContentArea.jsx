@@ -4,7 +4,7 @@ import BlogSection from './sections/BlogSection.jsx'
 import ProjectsSection from './sections/ProjectsSection.jsx'
 import AboutSection from './sections/AboutSection.jsx'
 import BackToTop from './BackToTop.jsx'
-import { initPageMotion } from '../motion/usePageMotion.js'
+import { initPageMotion, hideMotionElements } from '../motion/usePageMotion.js'
 import './ContentArea.css'
 
 export default function ContentArea({ activeTab, onNavigate, focusId, resetSignal }) {
@@ -53,8 +53,18 @@ export default function ContentArea({ activeTab, onNavigate, focusId, resetSigna
     setMotionEpoch((e) => (e === 0 ? e : 0))
   }, [activeTab])
 
-  // 页面内容挂载后初始化滚动动效（useLayoutEffect 在绘制前隐藏元素，避免 FOUC）；切换/卸载时还原
-  // 仅当数据已就绪（motionEpoch > 0）才执行：异步数据渲染晚于切页事件，若立即初始化会因子项缺失而漏建动画
+  // 挂载/切页后立即注入动效元素的隐藏初始态（绘制前执行），消除"DOM 就绪 → 动效初始化（防抖 120ms）"
+  // 窗口期内的刷新闪动（FOUC）。必须在 initPageMotion 的 useLayoutEffect 之前执行（同 tick 内先隐藏再建动画）。
+  // 注意：隐藏态由 hideMotionElements 负责；motionEpoch 仅负责创建动画（见下方）。
+  // 依赖 motionEpoch：异步数据返回后新渲染的 [data-stagger] 子项需再次补隐藏，
+  // 否则防抖窗口内卡片会先可见再被 initPageMotion 隐藏（次生闪现）。motionEpoch=0 时也执行（挂载/切页首次隐藏）。
+  useLayoutEffect(() => {
+    hideMotionElements(shellRef.current)
+  }, [activeTab, motionEpoch])
+
+  // 页面内容挂载后初始化滚动动效；切换/卸载时还原（gsap.context.revert 会清除由 hideMotionElements
+  // 与 fromTo 注入的内联样式）。仅当数据已就绪（motionEpoch > 0）才执行：异步数据渲染晚于切页事件，
+  // 若立即初始化会因子项缺失而漏建动画
   useLayoutEffect(() => {
     if (motionEpoch === 0) return
     const cleanup = initPageMotion(shellRef.current)

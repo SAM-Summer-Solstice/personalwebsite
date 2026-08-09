@@ -38,7 +38,7 @@ function AppShell() {
   const [starfield, setStarfield] = useState(false)
   const [matrix, setMatrix] = useState(false)
   const activeTab = pathToTab(location.pathname)
-  // 从首页跳转选中条目时带上的高亮 id（projects 用；blog 单篇由 /posts/:id 表达）
+  // 从首页跳转选中条目时带上的高亮 id（projects 用；blog 跳列表高亮也用）
   const focusId = location.state?.focusId || null
 
   // 终端命令所需数据：未加载完成时为空，命令同样不崩溃
@@ -73,10 +73,11 @@ function AppShell() {
 
   // 统一导航入口：普通跳转只传 tab；从首页选中条目跳转时附带上该条 id
   function handleNavigate(tab, id) {
-    const target = tabToPath(tab, id)
+    // blog 带 id（首页最近文章）→ 进列表并携带高亮 id；列表内点卡片由 BlogSection 直接进单篇
+    const target = tab === 'blog' && id ? '/posts' : tabToPath(tab, id)
     // 重复点击当前 tab（已是目标路径且无 id）→ 触发该页重置信号
     if (location.pathname === target && !id) setNavTick((n) => n + 1)
-    navigate(target, { state: id && tab === 'projects' ? { focusId: id } : undefined })
+    navigate(target, { state: id ? { focusId: id } : undefined })
   }
 
   return (
@@ -84,7 +85,8 @@ function AppShell() {
       <div className="bg-dither" aria-hidden="true">
         <Dither
           waveColor={[0.5568627450980392, 0.5490196078431373, 0.8352941176470589]}
-          disableAnimation={false}
+          /* projects/about 页与 3D 星图/吊牌并存，冻结波浪背景释放 GPU 帧预算；其余页保持动画 */
+          disableAnimation={activeTab === 'projects' || activeTab === 'about'}
           enableMouseInteraction={true}
           mouseRadius={0.8}
           colorNum={25}

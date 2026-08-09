@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { usePosts, usePost } from '../../data/useContent.js'
 import { incrementViews, toggleLike } from '../../api.js'
 import { useAuth } from '../../auth/AuthContext.jsx'
@@ -234,6 +234,7 @@ function BlogSingle({ post, onBack }) {
 export default function BlogSection({ focusId, resetSignal, onNavigate }) {
   // 单篇模式由 URL 表达：路由含 :postId 时渲染单篇，否则渲染列表
   const { postId } = useParams()
+  const navigate = useNavigate()
   const { posts, loading } = usePosts()
   const { post, loading: postLoading } = usePost(postId)
   const [flashId, setFlashId] = useState(null) // 短暂高亮中的条目 id
@@ -344,7 +345,7 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
               key={post.id}
               post={post}
               focused={post.id === flashId}
-              onOpen={(id) => onNavigate('blog', id)}
+              onOpen={(id) => navigate(`/posts/${id}`)}
             />
           ))}
         </div>

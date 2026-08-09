@@ -79,7 +79,9 @@ export default function Lanyard({
           onCreated={({ gl }) => gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1)}
         >
           <ambientLight intensity={Math.PI} />
-          <Physics gravity={gravity} timeStep={isMobile ? 1 / 30 : 1 / 60}>
+          {/* 物理步频统一 1/30：吊牌绳短且多处于悬挂/静止状态，30Hz 模拟观感与 60Hz 近似，
+              但主线程 rapier 每帧 step 开销直接减半 */}
+          <Physics gravity={gravity} timeStep={1 / 30}>
             <Band
               isMobile={isMobile}
               frontImage={frontImage}
@@ -209,6 +211,14 @@ function Band({
   const [hovered, hover] = useState(false)
   // 每次进入页面吊牌从正上方附近随机水平落点刷新，避免固定在右上角
   const [dropOffset] = useState(() => Math.random() * 1.6 - 0.8)
+  // 上一帧 4 个曲线关键点（j3 / j2 / j1 / fixed）的位置缓存，
+  // 用于静止时跳过 getPoints/setPoints 几何重建
+  const prevKeypointsRef = useRef([
+    new THREE.Vector3(),
+    new THREE.Vector3(),
+    new THREE.Vector3(),
+    new THREE.Vector3(),
+  ])
 
   useRopeJoint(fixed, j1, [
     [0, 0, 0],
@@ -258,7 +268,22 @@ function Band({
       curve.points[1].copy(j2.current.lerped)
       curve.points[2].copy(j1.current.lerped)
       curve.points[3].copy(fixed.current.translation())
-      band.current.geometry.setPoints(curve.getPoints(isMobile ? 16 : 32))
+      // 静止跳过重建：计算 4 个关键点相对上一帧的位移平方和（用平方距离避免每帧开方）。
+      // 经验阈值 1e-8 即单点位移约 5e-5（0.05 毫米量级，远小于像素），此时几何变化肉眼
+      // 不可分辨，直接沿用上一帧几何，跳过 getPoints（CatmullRom 插值）与 setPoints
+      // （新分配 Float32Array 重建 buffer）两处每帧开销；拖拽/摆动时位移远超阈值，正常重建
+      let motionSq = 0
+      for (let i = 0; i < curve.points.length; i++) {
+        motionSq += curve.points[i].distanceToSquared(prevKeypointsRef.current[i])
+      }
+      if (motionSq > 1e-8) {
+        // 曲线分段由 32 降为 16：绳短（约 2 个单位）且纹理重复，16 段平滑度足够，
+        // 插值点数与数组分配量减半
+        band.current.geometry.setPoints(curve.getPoints(16))
+      }
+      for (let i = 0; i < curve.points.length; i++) {
+        prevKeypointsRef.current[i].copy(curve.points[i])
+      }
       ang.copy(card.current.angvel())
       rot.copy(card.current.rotation())
       card.current.setAngvel({ x: ang.x, y: ang.y - rot.y * 0.25, z: ang.z })

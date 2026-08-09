@@ -227,6 +227,16 @@ function DitheredWaves({
     // 直接改 material 自身的 uniforms（R3F 拷贝语义下唯一能到达 shader 的路径）
     const u = mat.uniforms;
 
+    // 同步分辨率：useEffect 更新时机晚于 R3F 首帧渲染，demand 模式下首帧画完就不再重绘，
+    // 若不在此兜底，冻结页（projects/about）首帧会以 resolution=(0,0) 画出全黑画面且永久保留。
+    const dpr = gl.getPixelRatio();
+    const w = Math.floor(size.width * dpr),
+      h = Math.floor(size.height * dpr);
+    const res = u.resolution.value;
+    if (res.x !== w || res.y !== h) {
+      res.set(w, h);
+    }
+
     if (!disableAnimation) {
       timeRef.current += delta;
       u.time.value = timeRef.current;
@@ -290,7 +300,9 @@ export default function Dither({
       className="dither-container"
       camera={{ position: [0, 0, 6] }}
       dpr={1}
-      frameloop="always"
+      // 冻结动画时切 demand：time 恒定、画面静止，无需每帧重绘，彻底暂停渲染循环
+      // （R3F 首次挂载仍会画一帧，画面保留；切回动画后自动恢复 always 流动）
+      frameloop={disableAnimation ? 'demand' : 'always'}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
     >
       <DitheredWaves

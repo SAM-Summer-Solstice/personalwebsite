@@ -6,7 +6,8 @@
 //     [data-stagger]       容器：直接子元素依次进场
 //     [data-reveal]        单元素轻量进场
 //     .md-figure           图片：reveal（img scale+opacity）+ 轻微视差（figure translateY）
-// - 初始隐藏态完全由 gsap.from 在 JS 运行时注入（fail-open：脚本失败/未执行时内容始终可见）
+// - 初始隐藏态由 hideMotionElements 在挂载时立即注入（绘制前），并由 initPageMotion 的 fromTo 显式 from 复核；
+//   fail-open：脚本失败/未执行时内容始终可见
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -45,6 +46,56 @@ function isInOrAboveViewport(sc, el) {
   const scRect = sc.getBoundingClientRect()
   const elRect = el.getBoundingClientRect()
   return elRect.top - scRect.top < sc.clientHeight
+}
+
+// 跳过逻辑（供 initPageMotion 与 hideMotionElements 共享）：
+// 顶部（scrollTop=0，首次进入页面）：仅"已滚出视口上方"的元素跳过，首屏内元素保留进场动画；
+// 深滚动恢复（scrollTop>0）：视口内及上方元素跳过，避免切回时整批重播入场动画
+function shouldSkipEl(sc, el) {
+  return sc.scrollTop <= 0 ? isScrolledPast(sc, el) : isInOrAboveViewport(sc, el)
+}
+
+/**
+ * 在浏览器绘制前立即为动效元素注入与各动画 from 态一致的隐藏初始态（gsap.set），
+ * 消除"DOM 就绪 → 动效初始化（防抖 120ms）"窗口期内的刷新闪动（FOUC）。
+ * - 复用 shouldSkip 跳过逻辑：已滚过/视口内的元素保持静态可见，不隐藏
+ * - 必须与 initPageMotion 内的 from 态完全一致，避免初始态与动画起跳态错位
+ * @param {HTMLElement} scope 页面内容根（content-shell）
+ */
+export function hideMotionElements(scope) {
+  if (!scope) return
+  const sc = scrollerEl()
+  if (!sc) return
+
+  // 模块标题：遮罩揭开初始态
+  scope.querySelectorAll('[data-reveal-title]').forEach((el) => {
+    if (shouldSkipEl(sc, el)) return
+    gsap.set(el, { clipPath: 'inset(0% 0% 100% 0%)', y: 46, scaleY: 1.14, transformOrigin: '0 100%' })
+  })
+
+  // 卡片/条目：依次进场初始态（只隐藏前 STAGGER_LIMIT 个未跳过子项）
+  scope.querySelectorAll('[data-stagger]').forEach((container) => {
+    const items = [...container.children].filter((el) => el.nodeType === 1)
+    if (!items.length) return
+    const limit = Number(container.dataset.staggerLimit) || STAGGER_LIMIT
+    const animated = items.filter((el) => !shouldSkipEl(sc, el)).slice(0, limit)
+    if (!animated.length) return
+    gsap.set(animated, { y: 30, opacity: 0 })
+  })
+
+  // 单元素轻量进场初始态
+  scope.querySelectorAll('[data-reveal]').forEach((el) => {
+    if (shouldSkipEl(sc, el)) return
+    gsap.set(el, { y: 22, opacity: 0 })
+  })
+
+  // Markdown 正文图片：img reveal 初始态（figure 视差无需隐藏）
+  scope.querySelectorAll('.md-figure').forEach((fig) => {
+    if (shouldSkipEl(sc, fig)) return
+    const img = fig.querySelector('img')
+    if (!img) return
+    gsap.set(img, { scale: 1.12, opacity: 0 })
+  })
 }
 
 /**
@@ -92,26 +143,34 @@ export function initPageMotion(scope) {
       const animated = items.filter((el) => !shouldSkip(el)).slice(0, limit)
       if (!animated.length) return
       const step = Math.min(0.07, 1.1 / animated.length)
-      gsap.from(animated, {
-        y: 30,
-        opacity: 0,
-        duration: 0.75,
-        ease: EASE_CARD,
-        stagger: step,
-        scrollTrigger: { trigger: animated[0], scroller: sc, start: 'top 88%', once: true },
-      })
+      gsap.fromTo(
+        animated,
+        { y: 30, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.75,
+          ease: EASE_CARD,
+          stagger: step,
+          scrollTrigger: { trigger: animated[0], scroller: sc, start: 'top 88%', once: true },
+        }
+      )
     })
 
     // 单元素轻量进场
     scope.querySelectorAll('[data-reveal]').forEach((el) => {
       if (shouldSkip(el)) return
-      gsap.from(el, {
-        y: 22,
-        opacity: 0,
-        duration: 0.7,
-        ease: EASE_CARD,
-        scrollTrigger: { trigger: el, scroller: sc, start: 'top 90%', once: true },
-      })
+      gsap.fromTo(
+        el,
+        { y: 22, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.7,
+          ease: EASE_CARD,
+          scrollTrigger: { trigger: el, scroller: sc, start: 'top 90%', once: true },
+        }
+      )
     })
 
     // Markdown 正文图片：img reveal（轻微放大 + 淡入），figure 视差（滚动 scrub）
@@ -119,13 +178,17 @@ export function initPageMotion(scope) {
       if (shouldSkip(fig)) return
       const img = fig.querySelector('img')
       if (!img) return
-      gsap.from(img, {
-        scale: 1.12,
-        opacity: 0,
-        duration: 0.9,
-        ease: EASE_CARD,
-        scrollTrigger: { trigger: fig, scroller: sc, start: 'top 92%', once: true },
-      })
+      gsap.fromTo(
+        img,
+        { scale: 1.12, opacity: 0 },
+        {
+          scale: 1,
+          opacity: 1,
+          duration: 0.9,
+          ease: EASE_CARD,
+          scrollTrigger: { trigger: fig, scroller: sc, start: 'top 92%', once: true },
+        }
+      )
       gsap.fromTo(
         fig,
         { y: 26 },

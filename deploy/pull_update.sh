@@ -7,7 +7,10 @@
 #   2. 本地已 push 代码到 GitHub
 #
 # 执行流程：
-#   git pull → npm install（如需）→ npm run build → migrate → collectstatic → 重启 gunicorn
+#   git pull → 前端构建（如有 Node.js）→ migrate → collectstatic → 重启 gunicorn
+#
+# 注意：WalnutPi 上通常没有 Node.js，前端 dist/ 需要在本地构建后通过
+#       deploy/transfer_dist.sh 传输。本脚本会在没有 Node.js 时自动跳过前端构建。
 
 set -e
 
@@ -84,25 +87,37 @@ if [ "$OLD_COMMIT" = "$NEW_COMMIT" ]; then
     exit 0
 fi
 
-# 4. 安装前端依赖（仅当 package.json 变化时）
-if git diff --name-only "$OLD_COMMIT".."$NEW_COMMIT" | grep -q "package.json"; then
-    echo ">>> [4/8] package.json 有变化，安装前端依赖..."
-    cd "$BLOG_DIR"
-    npm install
-else
-    echo ">>> [4/8] package.json 无变化，跳过 npm install"
-fi
+# 4. 前端依赖安装 + 构建（仅当有 Node.js 时）
+if command -v npm &>/dev/null; then
+    if git diff --name-only "$OLD_COMMIT".."$NEW_COMMIT" | grep -q "package.json"; then
+        echo ">>> [4/8] package.json 有变化，安装前端依赖..."
+        cd "$BLOG_DIR"
+        npm install
+    else
+        echo ">>> [4/8] package.json 无变化，跳过 npm install"
+    fi
 
-# 5. 构建前端
-echo ">>> [5/8] 构建前端 (npm run build)..."
-cd "$BLOG_DIR"
-npm run build
-echo "  前端构建完成，产物在 $DIST_DIR"
+    echo ">>> [5/8] 构建前端 (npm run build)..."
+    cd "$BLOG_DIR"
+    npm run build
+    echo "  前端构建完成，产物在 $DIST_DIR"
+else
+    echo ">>> [4/8] 未检测到 Node.js，跳过前端依赖安装"
+    echo ">>> [5/8] 未检测到 Node.js，跳过前端构建"
+    echo "  ⚠️ dist/ 未更新。请在本地构建后运行 deploy/transfer_dist.sh 传输"
+    echo "     或手动: 本地 npm run build → scp -r dist/ pi@WalnutPi:/home/pi/blog/"
+fi
 
 # 6. Django 数据库迁移 + 收拢静态文件
 echo ">>> [6/8] 执行 Django migrate + collectstatic..."
 cd "$DJANGO_DIR"
 source "$DJANGO_DIR/.venv/bin/activate"
+# 加载 .env 环境变量（prod 设置需要 DJANGO_SECRET_KEY 等）
+if [ -f "$DJANGO_DIR/.env" ]; then
+    set -a
+    source "$DJANGO_DIR/.env"
+    set +a
+fi
 python manage.py migrate --settings=blog_backend.settings.prod
 python manage.py collectstatic --noinput --settings=blog_backend.settings.prod
 

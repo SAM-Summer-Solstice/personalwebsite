@@ -1,44 +1,35 @@
-# 浏览量服务（server/）
+# 后端服务（server/django/）
 
-零依赖 Node 后端，统计文章浏览量（真实访问数据）。
+基于 Django 5.2 + DRF + django-markdownx 的博客后端，提供内容管理 API 与 SimpleUI 中文后台。
 
-## 本地启动
+## 本地开发
 
 ```bash
-npm run server        # 监听 http://localhost:3210（可用 PORT 环境变量改端口）
+cd server/django
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # Linux/macOS
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver      # 默认 http://127.0.0.1:8000
 ```
 
-开发环境运行 `npm run dev` 时，Vite 会把 `/api/*` 代理到该服务，前后端可直接联调。
+开发时 `npm run dev` 启动 Vite，`/api/*` 与 `/admin/*` 通过 Vite 代理转发到 Django dev server，前后端同源联调。
 
-## 接口
+## 配置
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/api/views/:postId` | 查询浏览量 → `{ views }` |
-| POST | `/api/views/:postId` | 浏览量 +1 → `{ views }` |
+Django 配置已按环境分层（`blog_backend/settings/`）：
 
-数据持久化在 `server/data/views.json`（首次请求自动创建，原子写入），重启不丢。
+| 模块 | 用途 |
+| --- | --- |
+| `base.py` | 公共配置（INSTALLED_APPS / MIDDLEWARE / DATABASES 等） |
+| `dev.py` | 开发：`DEBUG=True`、本地 SECRET_KEY，`manage.py` / `wsgi.py` 默认 |
+| `prod.py` | 生产：`DEBUG=False`、SECRET_KEY/ALLOWED_HOSTS/CSRF_TRUSTED_ORIGINS 走环境变量、`STATIC_ROOT`、HTTPS 安全配置 |
 
-## 部署到树莓派 / 服务器
+切换环境：`python manage.py check --settings=blog_backend.settings.prod`
 
-1. 构建前端：`npm run build`（产物在 `dist/`）
-2. 用任意静态服务器托管 `dist/`（如 `npx serve dist`、nginx、Caddy）
-3. 同时运行 `node server/index.js`（或 pm2 / systemd 托管），保持 `/api/*` 与静态站点同源或可跨域访问
-4. 若用 nginx，把 `/api` 反代到本服务即可：
-   ```nginx
-   location /api/ {
-     proxy_pass http://127.0.0.1:3210;
-   }
-   ```
+## 生产部署
 
-## Giscus 评论配置步骤
+详见仓库根目录 `deploy/`（Nginx + Gunicorn + systemd 部署模板）与 `.trae/specs/deploy-walnutpi/`。
 
-评论使用 Giscus（基于 GitHub Discussions），配置在 `src/giscusConfig.js`：
-
-1. 把站点发布到**公开 GitHub 仓库**（`git init` → push → 公开）
-2. 在仓库 Settings 中开启 **Discussions**
-3. 安装 [giscus app](https://github.com/apps/giscus) 到该仓库
-4. 访问 [https://giscus.app/](https://giscus.app/)，按站点域名生成 `repo / repoId / category / categoryId`
-5. 填入 `src/giscusConfig.js` 后重新构建部署
-
-配置留空期间，站点评论区域会显示提示文案，不影响其他功能。
+后台访问 `/admin/`（SimpleUI），markdownx 编辑器支持图片/视频上传，文件落盘到 `media/`。

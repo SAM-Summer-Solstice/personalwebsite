@@ -1,0 +1,7 @@
+# Django 5.2 博客后端项目依赖（部署于核桃派 Debian 12 bookworm / aarch64 ARM64 / Python 3.11.2）
+Django==5.2.4
+djangorestframework==3.16.0
+django-markdownx==4.0.9
+djangorestframework-simplejwt==5.5.0
+gunicorn==23.0.0
+django-simpleui==2025.1.1

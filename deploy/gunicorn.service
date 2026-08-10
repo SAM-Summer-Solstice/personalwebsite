@@ -1,0 +1,32 @@
+# systemd 服务单元 —— Gunicorn for Blog (Django WSGI)
+# 部署位置：/etc/systemd/system/gunicorn.service
+# 启用方式：sudo cp gunicorn.service /etc/systemd/system/gunicorn.service
+#           sudo systemctl daemon-reload
+#           sudo systemctl enable --now gunicorn
+#           sudo systemctl status gunicorn       # 查看运行状态
+#           sudo journalctl -u gunicorn -f       # 实时查看日志
+#
+# 修改本文件后需执行：sudo systemctl daemon-reload && sudo systemctl restart gunicorn
+
+[Unit]
+Description=Gunicorn for Blog
+After=network.target
+
+[Service]
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/blog/server/django
+EnvironmentFile=/home/pi/blog/server/django/.env
+ExecStart=/home/pi/blog/server/django/.venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:8000 \
+    --settings blog_backend.settings.prod \
+    blog_backend.wsgi:application
+Restart=on-failure
+RestartSec=5s
+
+# 内存限制：核桃派 1GB 总内存，预留 100MB 给系统/其他进程
+MemoryMax=900M
+
+[Install]
+WantedBy=multi-user.target

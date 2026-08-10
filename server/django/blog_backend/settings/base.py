@@ -127,4 +127,4 @@ SIMPLE_JWT = {
 # markdownx 上传：允许图片 + 视频（后台编辑器插入视频）
 MARKDOWNX_MEDIA_PATH = "markdownx/"
 MARKDOWNX_UPLOAD_CONTENT_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/ogg"]
-MARKDOWNX_UPLOAD_MAX_SIZE = 150 * 1024 * 1024
+MARKDOWNX_UPLOAD_MAX_SIZE = 100 * 1024 * 1024

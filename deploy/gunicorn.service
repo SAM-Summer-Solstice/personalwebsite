@@ -20,7 +20,6 @@ EnvironmentFile=/home/pi/blog/server/django/.env
 ExecStart=/home/pi/blog/server/django/.venv/bin/gunicorn \
     --workers 2 \
     --bind 127.0.0.1:8000 \
-    --settings blog_backend.settings.prod \
     blog_backend.wsgi:application
 Restart=on-failure
 RestartSec=5s

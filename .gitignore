@@ -10,10 +10,30 @@ __pycache__/
 # 运行时数据（浏览量统计），不提交
 server/data/
 
+# 生产数据：数据库、用户上传的 media（仅存核桃派，不进 GitHub）
+server/django/db.sqlite3
+server/django/db.sqlite3-journal
+server/django/media/
+
+# 静态文件收集目录（collectstatic 产物，部署时生成）
+server/django/static_collected/
+
+# 备份目录（仅存核桃派和本地，不进 GitHub）
+server/django/backups/
+backups/
+
+# content/ 下的 md 文章（历史归档保留在本地，不再推到 GitHub）
+# import_md 命令保留但不再主动执行，后续内容通过 Django Admin 创建
+content/posts/
+content/projects/
+
 # 本地环境
 *.local
 .env
 .env.*
+
+# 打包文件
+*.tar.gz
 
 # 系统文件
 .DS_Store

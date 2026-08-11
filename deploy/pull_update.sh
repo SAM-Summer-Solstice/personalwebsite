@@ -104,7 +104,7 @@ if command -v npm &>/dev/null; then
 else
     echo ">>> [4/8] 未检测到 Node.js，跳过前端依赖安装"
     echo ">>> [5/8] 未检测到 Node.js，跳过前端构建"
-    echo "  ⚠️ dist/ 未更新。请在本地构建后运行 deploy/transfer_dist.sh 传输"
+    echo "  ⚠️ dist/ 未更新。请在本地 Windows 上运行 deploy/transfer_dist.ps1 传输"
     echo "     或手动: 本地 npm run build → scp -r dist/ pi@WalnutPi:/home/pi/blog/"
 fi
 

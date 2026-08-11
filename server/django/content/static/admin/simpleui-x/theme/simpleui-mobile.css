@@ -1,0 +1,63 @@
+/*
+ * SimpleUI 后台移动端适配（仅 ≤480px 生效，桌面端外观不受影响）
+ * 通过 SIMPLEUI_DEFAULT_THEME 或 admin Media 注入
+ */
+@media (max-width: 480px) {
+  /* 防止整页横向溢出 */
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  /* 压缩 SimpleUI 布局内边距 */
+  .el-main {
+    padding: 8px !important;
+  }
+  .el-card__body {
+    padding: 10px !important;
+  }
+  .simpleui-content {
+    padding: 8px !important;
+  }
+
+  /* 列表表格：容器内横向滚动，页面本身不滚动 */
+  .el-table {
+    display: block;
+    overflow-x: auto;
+  }
+  .module table,
+  #result_list {
+    display: block;
+    overflow-x: auto;
+  }
+
+  /* 表单字段全宽 */
+  .form-row {
+    display: block;
+    width: 100%;
+  }
+  .fieldBox,
+  .form-row .fieldBox {
+    display: block;
+    float: none;
+    width: 100%;
+  }
+  .vTextField,
+  .vLargeTextField,
+  textarea,
+  select,
+  input[type="email"],
+  input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* 触控目标最小高度 */
+  .el-button,
+  .object-tools a,
+  .submit-row input,
+  button,
+  .btn {
+    min-height: 40px;
+  }
+}

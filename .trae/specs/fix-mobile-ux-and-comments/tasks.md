@@ -1,0 +1,68 @@
+# Tasks
+
+- [x] Task 1: 移动端版心与导航修复（前端纯 CSS/结构微调）
+  - [x] SubTask 1.1: `ContentArea.css`：`.content-shell` 在 ≤768px 下改为 `max-width: calc(100vw - 32px); padding: 76px 16px 24px`，消除每侧 ~68px 留白
+  - [x] SubTask 1.2: `Navbar.css`：`.navbar-inner` ≤768px 改为 `max-width: calc(100vw - 32px); padding: 0 12px`；隐藏整组 `.navbar-clock`；压缩 gap 与 tab/auth 内边距；`.navbar-tabs` 增加 `min-width: 0; overflow-x: auto` 兜底，`.navbar-right` 不收缩
+  - [x] SubTask 1.3: `npm run build` 通过；375px/320px 模拟视口下导航与登录按钮无溢出
+- [x] Task 2: 异步内容动效 FOUC 修复（前端）
+  - [x] SubTask 2.1: `BlogSection.jsx`：列表模式在 `!loading` 且 posts 渲染后、单篇模式在 post 渲染后，分别用 `useLayoutEffect` 对根元素 ref 调用 `hideMotionElements`
+  - [x] SubTask 2.2: `ProjectsSection.jsx`：projects 数据就绪后 `useLayoutEffect` 调用 `hideMotionElements`
+  - [x] SubTask 2.3: `AboutSection.jsx`：about 数据就绪后 `useLayoutEffect` 调用 `hideMotionElements`
+  - [x] SubTask 2.4: `npm run build` 通过；慢网无闪烁与滚动动效回归检查纳入 Task 10 验证
+- [x] Task 3: 评论回复/删除后端
+  - [x] SubTask 3.1: `models.py` 为 `Comment` 增加 `parent = models.ForeignKey("self", null=True, blank=True, related_name="replies", on_delete=models.CASCADE)`；生成 migration 0003
+  - [x] SubTask 3.2: `serializers.py`：`CommentSerializer` 增加 `parent`/`author_id`/`is_mine`（request 上下文）
+  - [x] SubTask 3.3: `views.py`：`comments` POST 接受 `parent_id`（校验属同一 post）；新增 `comment_detail` 视图支持 `DELETE /comments/<pk>/`（作者或 staff，级联回复）；GET 传入 request 上下文
+  - [x] SubTask 3.4: `urls.py` 增加 `comments/<int:pk>/` 路由
+  - [x] SubTask 3.5: `admin.py`：CommentAdmin 展示 parent、filter 顶层评论
+- [x] Task 4: 评论区前端回复与删除
+  - [x] SubTask 4.1: `api.js`：`addComment` 支持 `parentId` 参数；新增 `deleteComment(id)`；`getComments` 不变
+  - [x] SubTask 4.2: `CommentSection.jsx`：按 `parent` 构建树（递归，深度缩进）；每条评论"回复"按钮（未登录触发 openAuth）与行内回复表单；删除按钮（`is_mine` 或 staff）带确认
+  - [x] SubTask 4.3: `ContentArea.css` 增加回复/删除样式（缩进、小字操作按钮、确认态）
+  - [x] SubTask 4.4: `npm run build`；验证回复嵌套显示、删除级联（后端冒烟已验证接口）
+- [x] Task 5: 通知系统后端（站内 + 邮件）
+  - [x] SubTask 5.1: `models.py` 新增 `Notification`（recipient/actor/comment/is_read/created_at）；migration
+  - [x] SubTask 5.2: 评论 POST 创建成功时，若 parent.author 非当前用户则创建 Notification（type=reply，关联新评论），并同步调用邮件发送（recipient 有邮箱时）：正文含回复者/回复内容/文章标题与 `/posts/<slug>` 绝对链接；`try/except` 包裹，失败仅记日志不影响评论
+  - [x] SubTask 5.3: `views.py`/`urls.py`：`GET /notifications/`（列表+unread_count）、`POST /notifications/read/`（全部已读）、`POST /notifications/<pk>/read/`（单条）
+  - [x] SubTask 5.4: `serializers.py`：`NotificationSerializer`（actor、post slug/标题、comment 摘要、is_read、created_at）
+  - [x] SubTask 5.5: `admin.py` 注册 Notification
+- [x] Task 6: 账号与密码重置后端
+  - [x] SubTask 6.1: EMAIL 配置：`dev.py` 用 console 后端；`prod.py` 从环境变量读 `EMAIL_HOST/EMAIL_PORT/EMAIL_HOST_USER/EMAIL_HOST_PASSWORD/EMAIL_USE_TLS`；`deploy/.env.example` 补充 EMAIL_* 说明
+  - [x] SubTask 6.2: `register` 视图：email 改为必填并用 `validate_email` 校验；`me` 视图 GET 返回 email，PATCH 支持修改 email（格式校验）
+  - [x] SubTask 6.3: `models.py` 新增 `PasswordResetCode`（user FK、code 哈希、created_at、expires_at、used、attempts）；migration
+  - [x] SubTask 6.4: `views.py`/`urls.py`：`POST /password-reset/request/`（生成 6 位验证码、10 分钟有效、同用户冷却间隔、新码作废旧码、邮箱不存在也返回相同提示防枚举、发送邮件）与 `POST /password-reset/confirm/`（校验 code+新密码、attempts 超限失效、重置成功置 used）
+  - [x] SubTask 6.5: `admin.py` 注册 PasswordResetCode（只读展示）
+- [ ] Task 7: 用户面板前端（通知 + 资料）
+  - [ ] SubTask 7.1: `api.js`：`getNotifications`/`markNotificationsRead`/`markNotificationRead`/`updateMe`（PATCH email）
+  - [ ] SubTask 7.2: `AuthContext.jsx`：user 增加 email；新增 `unread` 状态与 `refreshUnread()`（登录后、面板操作后刷新）
+  - [ ] SubTask 7.3: `Navbar.jsx`：登录态用户名改为按钮，带未读徽标，点击打开 UserPanel；退出移入面板
+  - [ ] SubTask 7.4: 新增 `UserPanel.jsx` + `UserPanel.css`：弹窗含"消息/资料"两个标签页；消息页列表（未读高亮、点击标记已读并跳转对应文章、全部已读按钮）；资料页用户名只读 + 邮箱编辑保存
+  - [ ] SubTask 7.5: `App.jsx` 挂载 `<UserPanel />`；`npm run build` 通过
+- [ ] Task 8: 登录弹窗忘记密码流程
+  - [ ] SubTask 8.1: `AuthModal.jsx`：登录 tab 增加"忘记密码？"入口，新增 `forgot` 模式（步骤 1：邮箱 + 获取验证码按钮带 60s 倒计时；步骤 2：验证码 + 新密码 + 确认提交；成功提示回登录）；邮箱必填 `required` + 格式校验
+  - [ ] SubTask 8.2: `AuthModal.css` 补充 forgot 模式样式
+  - [ ] SubTask 8.3: `npm run build`；验证请求验证码、错误码提示、成功重置后可用新密码登录
+- [x] Task 9: Django 后台移动端适配
+  - [x] SubTask 9.1: 新增 admin 移动端 CSS（`content/static/admin/simpleui-mobile.css`）：≤480px 侧栏可收/隐藏、`.el-main` 内边距收缩、表格容器横向滚动、表单全宽、触控目标 ≥40px
+  - [x] SubTask 9.2: `base.py` 配置 `SIMPLEUI_DEFAULT_THEME` 指向该 CSS（确保 SimpleUI 正确加载，若该机制不生效则改用 admin Media 注入并验证）
+  - [x] SubTask 9.3: 本地 `collectstatic` 验证 CSS 被收集；窄视口访问 /admin/ 确认无整页横向溢出
+- [x] Task 10: 构建与整体验证
+  - [x] SubTask 10.1: `python manage.py makemigrations && migrate` 成功，服务启动无报错
+  - [x] SubTask 10.2: `npm run build` 通过
+  - [x] SubTask 10.3: 按 checklist.md 逐项验证
+
+# Task Dependencies
+- [Task 2] 无依赖（可并行于 Task 1）
+- [Task 3] 无依赖（可并行于 Task 1/2）
+- [Task 4] 依赖 [Task 3]
+- [Task 5] 依赖 [Task 3]（回复创建处触发通知与邮件）
+- [Task 6] 无依赖（可并行）
+- [Task 7] 依赖 [Task 5]、[Task 6]
+- [Task 8] 依赖 [Task 6]（重置接口）
+- [Task 9] 无依赖（可并行）
+- [Task 10] 依赖所有任务
+
+# 并行组
+- 组 A（前端视觉）：Task 1、Task 2
+- 组 B（后端数据）：Task 3、Task 5、Task 6、Task 9
+- 组 C（前端功能）：Task 4（依赖 B 的 3）、Task 7（依赖 B 的 5/6）、Task 8（依赖 B 的 6）

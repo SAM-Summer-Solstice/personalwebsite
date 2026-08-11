@@ -778,6 +778,59 @@
   overflow-wrap: break-word;
 }
 
+/* 评论操作行：回复 / 删除，小号 muted 文字按钮 */
+.blog-comment-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+}
+
+.blog-comment-action-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.blog-comment-action-btn:hover {
+  color: var(--accent);
+}
+
+.blog-comment-action-btn.is-danger:hover {
+  color: #e06c75;
+}
+
+/* 回复嵌套：左发丝线 + 缩进（深层级复用同一缩进） */
+.blog-comment-replies {
+  margin-top: 6px;
+  margin-left: 22px;
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+  list-style: none;
+}
+
+/* 回复表单：内联出现在评论下方 */
+.blog-comment-reply-form {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+}
+
+.blog-comment-reply-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 /* 发表评论表单 */
 .blog-comment-form {
   margin-top: 18px;
@@ -1376,7 +1429,8 @@
 
 @media (max-width: 768px) {
   .content-shell {
-    padding: 76px 20px 24px;
+    max-width: calc(100vw - 32px); /* 移动端左右各留 16px，收紧版心减少留白 */
+    padding: 76px 16px 24px;
   }
   .blog-card-head {
     gap: 8px;
@@ -1400,6 +1454,10 @@
     bottom: 80px; /* 高于收起终端（40px） */
     width: 40px;
     height: 40px;
+  }
+  .blog-comment-replies {
+    margin-left: 12px;
+    padding-left: 10px;
   }
 }
 

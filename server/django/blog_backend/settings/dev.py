@@ -14,4 +14,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# 开发环境邮件输出到控制台，便于调试发送逻辑
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 # REACT_DIST 已在 base.py 指向项目根 dist/，开发无需覆盖

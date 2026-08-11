@@ -126,14 +126,48 @@
   gap: 10px;
 }
 
-.navbar-user {
+/* 用户按钮：用户名 + 未读角标，点击打开用户面板 */
+.navbar-user-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
   font-size: 13px;
-  color: var(--accent-2);
+  color: var(--text-muted);
   max-width: 160px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.navbar-user-btn:hover {
+  color: var(--accent);
+}
+
+.navbar-user-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   user-select: none;
+}
+
+/* 未读角标：accent 底白字小圆片 */
+.navbar-user-badge {
+  flex-shrink: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .navbar-auth-btn {
@@ -156,25 +190,33 @@
 
 @media (max-width: 768px) {
   .navbar-inner {
+    max-width: calc(100vw - 32px); /* 移动端收窄版心，与 content-shell 对齐 */
     padding: 0 12px;
-    gap: 8px;
+    gap: 4px;
   }
   .navbar-logo {
     font-size: 15px;
   }
   .navbar-tab {
     font-size: 13px;
-    padding: 4px 9px;
+    padding: 4px 7px;
   }
   .navbar-clock {
-    font-size: 12px;
-    gap: 6px;
+    display: none; /* 窄屏隐藏整组时钟，给 tabs 与登录按钮腾空间 */
   }
-  .navbar-clock-date {
-    display: none;
+  .navbar-auth-btn {
+    padding: 3px 9px;
   }
-  /* 窄屏隐藏用户名，只保留 登录/退出 按钮 */
-  .navbar-user {
-    display: none;
+  /* 极端窄屏兜底：标签区内部横向滚动，登录按钮始终在屏幕内 */
+  .navbar-tabs {
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .navbar-right {
+    flex-shrink: 0;
+  }
+  /* 窄屏收窄用户名按钮（保留角标可见），不再整组隐藏 */
+  .navbar-user-btn {
+    max-width: 96px;
   }
 }

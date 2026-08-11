@@ -1,15 +1,23 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useLayoutEffect, useRef } from 'react'
 import { useAbout } from '../../data/useContent.js'
 // Lanyard（drei + rapier + meshline + GLB）较重，仅进入 about 页时按需加载
 const Lanyard = lazy(() => import('../Lanyard.jsx'))
+import { hideMotionElements } from '../../motion/usePageMotion.js'
 
 export default function AboutSection() {
   // 数据由 API 提供；加载中渲染占位，就绪后渲染原结构
   const { about } = useAbout()
+  const rootRef = useRef(null)
+
+  // 异步数据提交 DOM 后、浏览器绘制前，立即注入动效隐藏初始态，
+  // 消除"内容先显示 → 防抖后再隐藏 → 滚动进场"的 FOUC 闪动（幂等，可重复调用）
+  useLayoutEffect(() => {
+    if (rootRef.current) hideMotionElements(rootRef.current)
+  }, [about])
 
   if (!about) {
     return (
-      <section aria-label="关于">
+      <section ref={rootRef} aria-label="关于">
         <div className="about-layout">
           <div className="about-main">
             <header className="section-head">
@@ -26,7 +34,7 @@ export default function AboutSection() {
   }
 
   return (
-    <section aria-label="关于">
+    <section ref={rootRef} aria-label="关于">
       <div className="about-layout">
         <div className="about-main" data-stagger data-stagger-limit="8">
           <header className="section-head">

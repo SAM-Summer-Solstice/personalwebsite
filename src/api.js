@@ -74,9 +74,42 @@ export function login(data) {
   return request('/token/', { method: 'POST', body: JSON.stringify(data) })
 }
 
+// 请求密码重置验证码（发送到邮箱；未注册邮箱同样返回 200）
+export function requestPasswordReset(email) {
+  return request('/password-reset/request/', { method: 'POST', body: JSON.stringify({ email }) })
+}
+
+// 校验验证码 + 新密码，完成密码重置（失败返回 null）
+export function confirmPasswordReset(email, code, newPassword) {
+  return request('/password-reset/confirm/', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, new_password: newPassword }),
+  })
+}
+
 // 当前登录用户信息（需已登录；未登录 / token 失效返回 null）
 export function getMe() {
   return request('/me/')
+}
+
+// 更新当前用户资料（需登录；返回更新后的 me，校验失败返回 null）
+export function updateMe(data) {
+  return request('/me/', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+// 通知列表（需登录；返回 {list, unread_count}）
+export function getNotifications() {
+  return request('/notifications/')
+}
+
+// 全部通知标记已读（需登录）
+export function markNotificationsRead() {
+  return request('/notifications/read/', { method: 'POST' })
+}
+
+// 单条通知标记已读（需登录）
+export function markNotificationRead(id) {
+  return request(`/notifications/${id}/read/`, { method: 'POST' })
 }
 
 // 文章评论列表（未登录也可读）
@@ -84,12 +117,17 @@ export function getComments(postId) {
   return request(`/posts/${postId}/comments/`)
 }
 
-// 发表评论（需登录；成功返回新评论对象）
-export function addComment(postId, content) {
+// 发表评论（需登录；成功返回新评论对象；parentId 为回复目标评论 id，可为 null 表示顶层评论）
+export function addComment(postId, content, parentId) {
   return request(`/posts/${postId}/comments/`, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, parent_id: parentId || null }),
   })
+}
+
+// 删除评论（需登录且仅本人 / 管理员；DELETE 204 无返回体，成功 / 失败均为 null，调用方本地移除即可）
+export function deleteComment(id) {
+  return request(`/comments/${id}/`, { method: 'DELETE' })
 }
 
 // 切换点赞（需登录；返回 {likes, liked}）

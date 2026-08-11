@@ -6,6 +6,7 @@ Django 基础配置（开发与生产共享）。
 - prod.py：DEBUG=False、环境变量读取敏感配置、STATIC_ROOT、HTTPS 安全配置
 """
 
+import os
 from pathlib import Path
 from datetime import timedelta
 
@@ -111,6 +112,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# 发件人地址（生产可用 DJANGO_DEFAULT_FROM_EMAIL 覆盖）
+DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "noreply@xuzixuan.top")
+
 # 前端 React 构建产物目录（Vite build 输出 dist/）
 # 默认指向项目根 dist/（开发）；生产由 prod.py 覆盖为部署路径
 REACT_DIST = BASE_DIR.parent.parent / "dist"
@@ -123,6 +127,10 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),  # 个人站：access 有效期放宽，避免频繁刷新
 }
+
+# SimpleUI 默认主题：仅附加移动端适配（内容全是 ≤480px 媒体查询，桌面端无副作用）
+# 对应文件 content/static/admin/simpleui-x/theme/simpleui-mobile.css
+SIMPLEUI_DEFAULT_THEME = "simpleui-mobile.css"
 
 # markdownx 上传：允许图片 + 视频（后台编辑器插入视频）
 MARKDOWNX_MEDIA_PATH = "markdownx/"

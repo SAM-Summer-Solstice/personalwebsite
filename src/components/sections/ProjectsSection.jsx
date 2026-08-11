@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useProjects } from '../../data/useContent.js'
+import { hideMotionElements } from '../../motion/usePageMotion.js'
 // ProjectsNetwork（three + drei TrackballControls）较重，仅进入 projects 页时按需加载
 const ProjectsNetwork = lazy(() => import('./ProjectsNetwork.jsx'))
 
@@ -67,6 +68,7 @@ export default function ProjectsSection({ focusId }) {
   const [flashId, setFlashId] = useState(null) // 短暂高亮中的条目 id
   const [showLabels, setShowLabels] = useState(false) // 3D 星图全部节点名称常显开关
   const overviewRef = useRef(null)
+  const rootRef = useRef(null)
 
   // 星图 canvas 在可视范围内时，概览侧栏与其等高对齐；滚出视口后恢复自然高度。
   // 直接用 classList 切换，避免触发 React 重渲染干扰 Canvas，保证过渡平滑。
@@ -95,6 +97,11 @@ export default function ProjectsSection({ focusId }) {
     return () => clearTimeout(clearTimer)
   }, [focusId])
 
+  // 异步项目数据渲染提交后（绘制前）立即隐藏动效元素初始态，消除"先显示→消失→再动画"窗口
+  useLayoutEffect(() => {
+    if (rootRef.current) hideMotionElements(rootRef.current)
+  }, [projects])
+
   // 按日期从新到旧排序
   const sorted = [...projects].sort((a, b) => new Date(b.date) - new Date(a.date))
 
@@ -106,7 +113,7 @@ export default function ProjectsSection({ focusId }) {
   const latest = sorted[0]
 
   return (
-    <section aria-label="项目">
+    <section ref={rootRef} aria-label="项目">
       <div className="projects-page">
         <div className="projects-main">
           <header className="section-head">

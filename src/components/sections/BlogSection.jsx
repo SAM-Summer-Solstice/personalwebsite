@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { usePosts, usePost } from '../../data/useContent.js'
 import { incrementViews, toggleLike } from '../../api.js'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import MarkdownBody from '../MarkdownBody.jsx'
 import CommentSection from '../CommentSection.jsx'
+import { hideMotionElements } from '../../motion/usePageMotion.js'
 
 // 附件图标：按 kind 给一个 mono 字符（image ▣ / video ▶ / file ↓）
 const KIND_ICON = { image: '▣', video: '▶', file: '↓' }
@@ -240,7 +241,13 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
   const [flashId, setFlashId] = useState(null) // 短暂高亮中的条目 id
   const [query, setQuery] = useState('') // 搜索关键词
   const [activeTag, setActiveTag] = useState(null) // 激活的筛选标签
+  const rootRef = useRef(null)
   const singleMode = Boolean(postId)
+
+  // 异步数据渲染提交后（绘制前）立即隐藏动效元素初始态，消除"先显示→消失→再动画"窗口
+  useLayoutEffect(() => {
+    if (rootRef.current) hideMotionElements(rootRef.current)
+  }, [loading, postLoading, post])
 
   // 重复点击导航 posts：单篇模式（路由含 :postId）时回到 /posts 列表
   useEffect(() => {
@@ -282,27 +289,27 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
   if (singleMode) {
     if (postLoading) {
       return (
-        <section aria-label="日志">
+        <section ref={rootRef} aria-label="日志">
           <p className="blog-empty">加载中…</p>
         </section>
       )
     }
     if (!post) {
       return (
-        <section aria-label="日志">
+        <section ref={rootRef} aria-label="日志">
           <p className="blog-empty">文章不存在</p>
         </section>
       )
     }
     return (
-      <section aria-label="日志">
+      <section ref={rootRef} aria-label="日志">
         <BlogSingle post={post} onBack={() => onNavigate('blog')} />
       </section>
     )
   }
 
   return (
-    <section aria-label="日志">
+    <section ref={rootRef} aria-label="日志">
       <header className="section-head">
         <h2 className="section-title mono" data-reveal-title>~/posts</h2>
         <p className="section-desc" data-reveal>

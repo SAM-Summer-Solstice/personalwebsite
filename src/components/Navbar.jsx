@@ -24,7 +24,7 @@ function pad(n) {
 }
 
 export default function Navbar({ activeTab, onNavigate }) {
-  const { user, openAuth, logout } = useAuth()
+  const { user, openAuth, openPanel, unread } = useAuth()
   const now = useClock()
   const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
@@ -64,14 +64,15 @@ export default function Navbar({ activeTab, onNavigate }) {
 
           <div className="navbar-auth">
             {user ? (
-              <>
-                <span className="navbar-user mono" title={user.username}>
-                  {user.username}
-                </span>
-                <button type="button" className="navbar-auth-btn mono" onClick={logout}>
-                  退出
-                </button>
-              </>
+              <button
+                type="button"
+                className="navbar-user-btn mono"
+                title={user.username}
+                onClick={openPanel}
+              >
+                <span className="navbar-user-name">{user.username}</span>
+                {unread > 0 && <span className="navbar-user-badge">{unread}</span>}
+              </button>
             ) : (
               <button type="button" className="navbar-auth-btn mono" onClick={openAuth}>
                 登录

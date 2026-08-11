@@ -58,6 +58,7 @@ class Comment(models.Model):
     """帖子评论：登录用户发表，默认直接显示，后台可审核。"""
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="comments_set")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies", verbose_name="上级评论")
     content = models.TextField("内容")
     created_at = models.DateTimeField(auto_now_add=True)
     is_approved = models.BooleanField("已审核", default=True)
@@ -67,6 +68,38 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.author.username}: {self.content[:20]}"
+
+
+class Notification(models.Model):
+    """站内通知：回复评论时通知被回复者（另有邮件兜底）。"""
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notified_actors")
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="notifications")
+    kind = models.CharField("类型", max_length=20, default="reply")
+    is_read = models.BooleanField("已读", default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.actor} -> {self.recipient}: {self.comment_id}"
+
+
+class PasswordResetCode(models.Model):
+    """密码重置验证码：哈希存储，10 分钟有效，最多尝试 5 次。"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reset_codes")
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    attempts = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user_id} code"
 
 
 class About(models.Model):

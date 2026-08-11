@@ -184,3 +184,32 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* 登录页成功提示（如密码重置完成）：accent-2 色 */
+.auth-modal-success {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--accent-2);
+  border: 1px solid rgba(111, 191, 201, 0.3);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+/* 忘记密码 / 返回登录：muted 文字链接按钮 */
+.auth-forgot-link {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  align-self: flex-start;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.auth-forgot-link:hover {
+  color: var(--accent);
+}

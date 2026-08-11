@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
-from .models import Post, Project, About, Attachment, Comment
+from .models import Post, Project, About, Attachment, Comment, Notification
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
@@ -28,12 +28,39 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
-    """评论序列化：只暴露作者名。"""
+    """评论序列化：只暴露作者名，附带父评论与归属判断。"""
     author = serializers.CharField(source="author.username", read_only=True)
+    author_id = serializers.IntegerField(source="author.id", read_only=True)
+    parent = serializers.IntegerField(source="parent_id", read_only=True, allow_null=True)
+    is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ["id", "author", "content", "created_at"]
+        fields = ["id", "parent", "author", "author_id", "content", "created_at", "is_mine"]
+
+    def get_is_mine(self, obj):
+        """当前登录用户是否为该评论作者。"""
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        return obj.author_id == user.id
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """站内通知序列化：附被回复评论所在文章与预览。"""
+    actor = serializers.CharField(source="actor.username", read_only=True)
+    post_slug = serializers.CharField(source="comment.post.slug", read_only=True)
+    post_title = serializers.CharField(source="comment.post.title", read_only=True)
+    comment_preview = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Notification
+        fields = ["id", "kind", "actor", "post_slug", "post_title", "comment_preview", "is_read", "created_at"]
+
+    def get_comment_preview(self, obj):
+        """评论内容前 80 个字符作为预览。"""
+        return obj.comment.content[:80]
 
 
 # 对外 id 使用 slug（沿用原 md 的 id，前端字段不变）

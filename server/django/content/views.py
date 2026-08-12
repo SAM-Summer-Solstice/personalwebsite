@@ -77,7 +77,7 @@ def users_list(request):
     """注册用户墙：真实评论数（仅已审核），按评论数降序、注册时间升序。"""
     qs = (
         User.objects.annotate(
-            comment_count=Count("comment_set", filter=Q(comment_set__is_approved=True))
+            comment_count=Count("comment", filter=Q(comment__is_approved=True))
         )
         .filter(is_active=True)
         .order_by("-comment_count", "date_joined")

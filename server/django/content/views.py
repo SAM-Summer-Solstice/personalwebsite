@@ -12,6 +12,7 @@ from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.http import FileResponse, Http404
 from django.utils import timezone
+from django.db.models import Count, Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -35,12 +36,20 @@ RESET_CODE_MAX_ATTEMPTS = 5
 
 @api_view(["GET"])
 def posts_list(request):
-    qs = Post.objects.all()
+    qs = Post.objects.annotate(
+        comment_count=Count("comments_set", filter=Q(comments_set__is_approved=True))
+    )
     return Response(PostListSerializer(qs, many=True, context={"request": request}).data)
 
 @api_view(["GET"])
 def post_detail(request, pk):
-    post = Post.objects.filter(slug=pk).first()
+    post = (
+        Post.objects.annotate(
+            comment_count=Count("comments_set", filter=Q(comments_set__is_approved=True))
+        )
+        .filter(slug=pk)
+        .first()
+    )
     if post is None:
         return Response({"detail": "Not found."}, status=404)
     return Response(PostDetailSerializer(post, context={"request": request}).data)

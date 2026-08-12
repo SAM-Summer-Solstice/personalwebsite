@@ -66,12 +66,14 @@ class NotificationSerializer(serializers.ModelSerializer):
 # 对外 id 使用 slug（沿用原 md 的 id，前端字段不变）
 class PostListSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source="slug", read_only=True)
+    # 真实评论数：来自 views.py 的 Count 注解（仅统计已审核评论）
+    comment_count = serializers.IntegerField(read_only=True)
     # 当前登录用户是否已赞（未登录恒为 False）
     liked = SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ["id", "slug", "title", "date", "tags", "excerpt", "views", "likes", "comments", "liked"]
+        fields = ["id", "slug", "title", "date", "tags", "excerpt", "views", "likes", "comment_count", "liked"]
 
     def get_liked(self, obj):
         request = self.context.get("request")
@@ -86,7 +88,7 @@ class PostDetailSerializer(PostListSerializer):
     attachments = AttachmentSerializer(many=True, read_only=True)
 
     class Meta(PostListSerializer.Meta):
-        fields = ["id", "slug", "title", "date", "tags", "excerpt", "content", "views", "likes", "comments", "liked", "attachments"]
+        fields = ["id", "slug", "title", "date", "tags", "excerpt", "content", "views", "likes", "comment_count", "liked", "attachments"]
 
 
 class ProjectSerializer(serializers.ModelSerializer):

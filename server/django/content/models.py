@@ -12,9 +12,9 @@ class Post(models.Model):
     content = MarkdownxField("正文 Markdown")
     views = models.PositiveIntegerField("浏览量", default=0)
     likes = models.PositiveIntegerField("点赞数", default=0)
-    # 点赞用户集合（保留原 likes 数值字段作为计数基数）
+    # 点赞用户集合（likes 数值以 liked_by 真实用户数为准）
     liked_by = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="liked_posts")
-    comments = models.JSONField("评论（预留）", default=list)
+    # 评论数不再存字段，实时从 Comment 表统计（见 serializers.comment_count）
 
     class Meta:
         ordering = ["-date", "slug"]

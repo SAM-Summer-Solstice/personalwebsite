@@ -33,7 +33,8 @@ function collectIds(comment, list) {
 }
 
 // 自建评论区：加载评论列表；未登录显示登录入口，已登录可发表顶层评论 / 回复 / 删除本人评论
-export default function CommentSection({ postId }) {
+// onCountChange：评论列表加载/增/删后回传真实评论总数（含回复），供帖子信息行同步展示
+export default function CommentSection({ postId, onCountChange }) {
   const { user, openAuth } = useAuth()
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -54,6 +55,7 @@ export default function CommentSection({ postId }) {
       if (!alive) return
       setComments(data || [])
       setLoading(false)
+      onCountChange?.(data?.length ?? 0)
     })
     return () => {
       alive = false
@@ -77,8 +79,10 @@ export default function CommentSection({ postId }) {
     const data = await addComment(postId, text)
     setSubmitting(false)
     if (data) {
-      setComments((list) => [...list, data])
+      const next = [...comments, data]
+      setComments(next)
       setContent('')
+      onCountChange?.(next.length)
     }
   }
 
@@ -106,9 +110,11 @@ export default function CommentSection({ postId }) {
     const data = await addComment(postId, text, parent.id)
     setReplying(false)
     if (data) {
-      setComments((list) => [...list, data])
+      const next = [...comments, data]
+      setComments(next)
       setReplyTarget(null)
       setReplyText('')
+      onCountChange?.(next.length)
     }
   }
 
@@ -116,10 +122,10 @@ export default function CommentSection({ postId }) {
   async function handleDelete(c) {
     if (!window.confirm('确定删除这条评论及其回复吗？')) return
     await deleteComment(c.id)
-    setComments((list) => {
-      const ids = collectIds(c, list)
-      return list.filter((x) => !ids.includes(x.id))
-    })
+    const ids = collectIds(c, comments)
+    const next = comments.filter((x) => !ids.includes(x.id))
+    setComments(next)
+    onCountChange?.(next.length)
   }
 
   // 递归渲染单条评论：内容 + 操作行 + 内联回复表单 + 嵌套回复

@@ -31,10 +31,11 @@ function fileNameFromPath(file) {
   return name || file || '附件'
 }
 
-// 帖子信息行：浏览（列表数据自带 views，单篇计数成功后父组件传入 viewsOverride 覆盖）/ 评论入口 / 点赞
+// 帖子信息行：浏览（列表数据自带 views，单篇计数成功后父组件传入 viewsOverride 覆盖）/ 评论数 / 点赞
+// 评论数：默认取 API 的 comment_count（真实已审核评论数），单篇视图由父组件实时传入 commentCountOverride
 // 点赞：liked/likes 以 API 返回为准初始化；未登录点击弹登录窗，已登录调 toggleLike 切换并同步服务端结果
 // viewsOverride：单篇视图计数成功后由父组件传入的最新值，优先级最高
-function PostMeta({ post, viewsOverride, onOpen }) {
+function PostMeta({ post, viewsOverride, commentCountOverride, onOpen }) {
   const { user, openAuth } = useAuth()
   const [likes, setLikes] = useState(post.likes)
   const [liked, setLiked] = useState(Boolean(post.liked))
@@ -53,14 +54,17 @@ function PostMeta({ post, viewsOverride, onOpen }) {
 
   // 列表数据 views 已来自 GET /api/posts/，单篇计数后由 viewsOverride 覆盖，无需再单独拉取
   const displayViews = viewsOverride ?? post.views
+  const displayComments = commentCountOverride ?? post.comment_count ?? 0
 
   return (
     <div className="blog-post-meta">
       <span className="post-meta-views">浏览 {displayViews}</span>
-      {onOpen && (
+      {onOpen ? (
         <button type="button" className="post-meta-comments" onClick={() => onOpen(post.id)}>
-          查看评论
+          {displayComments} 条评论
         </button>
+      ) : (
+        <span className="post-meta-comments">评论 {displayComments}</span>
       )}
       <button
         type="button"
@@ -102,6 +106,7 @@ function BlogCard({ post, focused, onOpen }) {
 function BlogSingle({ post, onBack }) {
   const [headings, setHeadings] = useState([]) // MarkdownBody 收集的 h2，用于 TOC
   const [views, setViews] = useState(post.views) // 计数后的最新浏览量（失败保持 mock）
+  const [commentCount, setCommentCount] = useState(post.comment_count ?? 0) // 评论区的实时评论数（增删后同步）
   const [activeIdx, setActiveIdx] = useState(null) // 当前可见小节序号，驱动星点 TOC 高亮
 
   // 单篇阅读计数：同一浏览器会话只 +1 一次（sessionStorage 守卫），成功后刷新展示值
@@ -203,10 +208,10 @@ function BlogSingle({ post, onBack }) {
           </section>
         )}
 
-        <PostMeta post={post} viewsOverride={views} />
+        <PostMeta post={post} viewsOverride={views} commentCountOverride={commentCount} />
 
         <div className="blog-comments-area">
-          <CommentSection postId={post.id} />
+          <CommentSection postId={post.id} onCountChange={setCommentCount} />
         </div>
       </div>
 

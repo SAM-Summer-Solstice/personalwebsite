@@ -37,10 +37,12 @@ class Command(BaseCommand):
         for path in glob.glob(str(BASE / "content" / "posts" / "*.md")):
             raw = Path(path).read_text(encoding="utf-8")
             fm, body = parse_frontmatter(raw)
-            required = ["id", "title", "date", "tags", "excerpt", "views", "likes", "comments"]
+            required = ["id", "title", "date", "tags", "excerpt"]
             if any(k not in fm for k in required):
                 self.stdout.write(self.style.WARNING(f"跳过缺少字段: {path}"))
                 continue
+            # 浏览量/点赞数不继承 md frontmatter（那是假数据），一律从 0 开始真实累计；
+            # 评论数实时从 Comment 表统计，这里不再导入。
             Post.objects.update_or_create(
                 slug=fm["id"],
                 defaults={
@@ -49,9 +51,8 @@ class Command(BaseCommand):
                     "tags": fm["tags"] if isinstance(fm["tags"], list) else [],
                     "excerpt": fm["excerpt"],
                     "content": body,
-                    "views": int(fm["views"] or 0),
-                    "likes": int(fm["likes"] or 0),
-                    "comments": fm["comments"] if isinstance(fm["comments"], list) else [],
+                    "views": 0,
+                    "likes": 0,
                 },
             )
             self.stdout.write(f"Post 导入: {fm['title']}")

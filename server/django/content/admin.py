@@ -82,6 +82,7 @@ class UserProfileInline(admin.TabularInline):
     extra = 0
     fields = ("avatar_preview", "avatar")
     readonly_fields = ("avatar_preview",)
+    avatar_preview = _avatar_preview  # 模块级函数挂到类上，admin 才能识别
 
 
 admin.site.unregister(User)
@@ -96,3 +97,4 @@ class CustomUserAdmin(UserAdmin):
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "avatar_preview")
     readonly_fields = ("avatar_preview",)
+    avatar_preview = _avatar_preview

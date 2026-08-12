@@ -140,6 +140,9 @@ class AboutSerializer(serializers.ModelSerializer):
     blogPurpose = serializers.JSONField(source="blog_purpose")
     # 「一些数据」实时统计：项目/文章数来自数据库，代码提交数来自 git 仓库
     stats = SerializerMethodField()
+    # 首页欢迎语/副标题（后台可编辑，留空时前端用内置默认文案）
+    homeWelcome = serializers.CharField(source="home_welcome", allow_blank=True, default="")
+    homeTagline = serializers.CharField(source="home_tagline", allow_blank=True, default="")
     # 吊牌三图（后台上传，返回相对路径 /media/...，前端拼 origin；留空返回 null 走前端默认图）
     lanyardImage = SerializerMethodField()
     cardFrontImage = SerializerMethodField()
@@ -147,7 +150,7 @@ class AboutSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = About
-        fields = ["name", "school", "grade", "birthYear", "intro", "directions", "interests", "stats", "contact", "blogPurpose", "lanyardImage", "cardFrontImage", "cardBackImage"]
+        fields = ["name", "school", "grade", "birthYear", "intro", "directions", "interests", "stats", "contact", "blogPurpose", "homeWelcome", "homeTagline", "lanyardImage", "cardFrontImage", "cardBackImage"]
 
     def get_stats(self, obj):
         return [
@@ -167,13 +170,19 @@ class AboutSerializer(serializers.ModelSerializer):
 
 
 class UserStatsSerializer(serializers.ModelSerializer):
-    """注册用户墙：用户名 + 真实评论数（仅已审核），joined 为注册年月。"""
+    """注册用户墙：用户名 + 真实评论数（仅已审核）+ 头像，joined 为注册年月。"""
     comment_count = serializers.IntegerField(read_only=True)
     joined = serializers.SerializerMethodField()
+    avatar = SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["username", "comment_count", "joined"]
+        fields = ["username", "comment_count", "joined", "avatar"]
 
     def get_joined(self, obj):
         return obj.date_joined.strftime("%Y-%m")
+
+    def get_avatar(self, obj):
+        """头像相对路径（/media/...），未上传返回 null（前端用首字母占位）。"""
+        profile = getattr(obj, "profile", None)
+        return profile.avatar.url if profile and profile.avatar else None

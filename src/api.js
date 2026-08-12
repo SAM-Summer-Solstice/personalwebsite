@@ -22,6 +22,13 @@ function authHeaders() {
   return t ? { Authorization: `Bearer ${t}` } : {}
 }
 
+// 后端返回的媒体资源是相对路径（/media/...），拼当前 origin；已是绝对 URL 则原样返回
+export function resolveMediaUrl(u) {
+  if (!u) return null
+  if (/^https?:\/\//i.test(u)) return u
+  return window.location.origin + (u.startsWith('/') ? u : `/${u}`)
+}
+
 async function request(path, options) {
   try {
     const res = await fetch(BASE + path, {
@@ -100,6 +107,22 @@ export function getMe() {
 // 更新当前用户资料（需登录；返回更新后的 me，校验失败返回 null）
 export function updateMe(data) {
   return request('/me/', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+// 上传/更换头像（需登录；multipart/form-data，file 为图片，后端限制 2MB；成功返回 {avatar}）
+export function uploadAvatar(file) {
+  return new Promise((resolve) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    fetch(BASE + '/me/avatar/', {
+      method: 'POST',
+      headers: { ...authHeaders() },
+      body: fd,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(resolve)
+      .catch(() => resolve(null))
+  })
 }
 
 // 通知列表（需登录；返回 {list, unread_count}）

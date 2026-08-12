@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.jsx'
-import { getNotifications, markNotificationsRead, markNotificationRead, updateMe } from '../api.js'
+import { getNotifications, markNotificationsRead, markNotificationRead, updateMe, uploadAvatar, resolveMediaUrl } from '../api.js'
 import './UserPanel.css'
 import './AuthModal.css' // 复用 .auth-modal-tab / .auth-submit / .auth-input / .auth-field 等表单样式
 
@@ -22,12 +22,15 @@ export default function UserPanel() {
   const [email, setEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [avatarMsg, setAvatarMsg] = useState('')
+  const avatarInputRef = useRef(null)
 
   // 打开面板：重置到消息 tab、预填邮箱、拉取通知；ESC / 遮罩点击关闭
   useEffect(() => {
     if (!panelOpen) return
     setTab('messages')
     setSaveMsg('')
+    setAvatarMsg('')
     setEmail(user?.email || '')
     getNotifications().then((d) => {
       if (d) setNotifications(d.list || [])
@@ -57,6 +60,29 @@ export default function UserPanel() {
     await markNotificationsRead()
     setNotifications((list) => list.map((x) => ({ ...x, is_read: true })))
     refreshUnread()
+  }
+
+  // 选择头像文件：校验类型/大小（≤2MB）后上传，成功刷新用户信息
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // 允许再次选择同一文件
+    setAvatarMsg('')
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setAvatarMsg('请选择图片文件')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarMsg('图片不能超过 2MB')
+      return
+    }
+    const data = await uploadAvatar(file)
+    if (data && data.avatar) {
+      await refreshUser()
+      setAvatarMsg('头像已更新')
+    } else {
+      setAvatarMsg('头像上传失败，请重试')
+    }
   }
 
   // 保存资料：更新邮箱成功后刷新用户信息并提示
@@ -146,6 +172,43 @@ export default function UserPanel() {
 
         {tab === 'profile' && (
           <div className="user-panel-section">
+            {/* 头像：预览 + 更换（≤2MB） */}
+            <div className="user-panel-avatar-row">
+              {user?.avatar ? (
+                <img
+                  className="user-panel-avatar-img"
+                  src={resolveMediaUrl(user.avatar)}
+                  alt={user.username}
+                />
+              ) : (
+                <span className="user-panel-avatar-img is-fallback mono" aria-hidden="true">
+                  {user?.username?.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <div className="user-panel-avatar-actions">
+                <button
+                  type="button"
+                  className="user-panel-avatar-btn mono"
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  更换头像
+                </button>
+                <span className="user-panel-avatar-hint mono">png / jpg，≤ 2MB</span>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={handleAvatarChange}
+                />
+              </div>
+            </div>
+            {avatarMsg && (
+              <p className={`user-panel-save-msg${avatarMsg === '头像已更新' ? ' is-ok' : ' is-err'}`}>
+                {avatarMsg}
+              </p>
+            )}
+
             <div className="auth-field">
               <span className="auth-field-label mono">username</span>
               <span className="user-panel-username mono">@{user?.username}</span>

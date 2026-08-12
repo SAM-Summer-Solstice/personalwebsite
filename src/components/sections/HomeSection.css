@@ -44,57 +44,80 @@
   max-width: 640px;
 }
 
-/* ---- 用户墙：注册用户卡片网格 ---- */
+/* ---- 用户墙：纯头像墙（hover 浮现用户名与评论数） ---- */
 .home-users {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
 }
 
 .home-user {
+  position: relative;
+  width: 76px;
+  height: 88px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  transition: border-color 0.2s ease;
-}
-
-.home-user:hover {
-  border-color: var(--accent);
 }
 
 .home-user-avatar {
-  width: 34px;
-  height: 34px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--bg, #fff);
+  object-fit: cover;
+  border: 1px solid var(--border);
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.home-user-avatar.is-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  background: var(--accent);
+  color: var(--bg, #fff);
+  font-size: 18px;
   font-weight: 600;
-  flex-shrink: 0;
+  border: none;
+}
+
+.home-user:hover .home-user-avatar {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+/* 名字与评论数：默认隐藏，hover 时淡入（固定单元格内，不挤动布局） */
+.home-user-name,
+.home-user-comments {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
 .home-user-name {
-  font-size: 15px;
+  top: 56px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
 }
 
 .home-user-comments {
-  font-size: 12px;
+  top: 72px;
+  font-size: 11px;
   color: var(--text-muted);
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-user:hover .home-user-name,
+.home-user:hover .home-user-comments {
+  opacity: 1;
 }
 
 .home-users-empty {
@@ -208,6 +231,6 @@
     font-size: 16px;
   }
   .home-users {
-    grid-template-columns: 1fr; /* 窄屏单列 */
+    gap: 10px 14px; /* 窄屏头像墙更紧凑 */
   }
 }

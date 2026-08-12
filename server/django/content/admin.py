@@ -1,6 +1,9 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
+from django.utils.html import mark_safe
 from markdownx.admin import MarkdownxModelAdmin
-from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode
+from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile
 
 
 class AttachmentInline(admin.TabularInline):
@@ -61,3 +64,35 @@ class AboutAdmin(admin.ModelAdmin):
     # 单例：只允许存在一条记录
     def has_add_permission(self, request):
         return not About.objects.exists()
+
+
+def _avatar_preview(obj):
+    """头像预览：有图显示圆形缩略图，无图显示占位文字。"""
+    if obj and obj.avatar:
+        return mark_safe(f'<img src="{obj.avatar.url}" height="44" style="border-radius:50%;object-fit:cover">')
+    return "未上传"
+
+
+_avatar_preview.short_description = "头像预览"
+
+
+class UserProfileInline(admin.TabularInline):
+    """用户编辑页内联头像（后台可查看/编辑每个用户的资料）。"""
+    model = UserProfile
+    extra = 0
+    fields = ("avatar_preview", "avatar")
+    readonly_fields = ("avatar_preview",)
+
+
+admin.site.unregister(User)
+
+
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    inlines = [UserProfileInline]
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "avatar_preview")
+    readonly_fields = ("avatar_preview",)

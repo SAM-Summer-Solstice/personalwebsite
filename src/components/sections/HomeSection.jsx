@@ -1,4 +1,5 @@
 import { useAbout, usePosts, useProjects, useUsers } from '../../data/useContent.js'
+import { resolveMediaUrl } from '../../api.js'
 import './HomeSection.css'
 
 export default function HomeSection({ onNavigate }) {
@@ -16,13 +17,13 @@ export default function HomeSection({ onNavigate }) {
 
       <header className="home-head">
         <h2 className="home-title mono">~</h2>
-        <p className="home-subtitle">你好，很高兴在这里遇见你</p>
+        <p className="home-subtitle">{a.homeTagline || '你好，很高兴在这里遇见你'}</p>
       </header>
 
-      {/* 首页极简 hero：只留欢迎语 + 一句话简介，详细个人资料在 about 页 */}
+      {/* 首页极简 hero：只留欢迎语 + 一句话简介，欢迎语后台可编辑，详细个人资料在 about 页 */}
       <div className="home-hero">
         <h1 className="home-welcome">
-          欢迎来到我的小站
+          {a.homeWelcome || '欢迎来到我的小站'}
           <span className="home-cursor" aria-hidden="true">▍</span>
         </h1>
         <p className="home-desc">{(a.intro || [])[0]}</p>
@@ -32,10 +33,20 @@ export default function HomeSection({ onNavigate }) {
         <h3 className="home-section-title mono home-title-accent" data-reveal-title>用户墙</h3>
         <div className="home-users" data-stagger>
           {users.map((u) => (
-            <div key={u.username} className="home-user">
-              <span className="home-user-avatar mono" aria-hidden="true">
-                {u.username.slice(0, 1).toUpperCase()}
-              </span>
+            <div key={u.username} className="home-user" title={u.username}>
+              {u.avatar ? (
+                <img
+                  className="home-user-avatar"
+                  src={resolveMediaUrl(u.avatar)}
+                  alt={u.username}
+                  loading="lazy"
+                />
+              ) : (
+                <span className="home-user-avatar is-fallback mono" aria-hidden="true">
+                  {u.username.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              {/* hover 才显示用户名与评论数，默认保持纯头像墙 */}
               <span className="home-user-name">{u.username}</span>
               <span className="home-user-comments mono">{u.comment_count} 条评论</span>
             </div>

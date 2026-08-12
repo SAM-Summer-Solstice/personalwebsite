@@ -161,6 +161,64 @@
 }
 
 /* ============ 资料 tab ============ */
+/* 头像：圆形预览 + 更换按钮 */
+.user-panel-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0 6px;
+}
+
+.user-panel-avatar-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.user-panel-avatar-img.is-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--bg, #fff);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.user-panel-avatar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.user-panel-avatar-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.user-panel-avatar-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.user-panel-avatar-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
 .user-panel-username {
   font-size: 15px;
   color: var(--text);

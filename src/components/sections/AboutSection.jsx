@@ -1,15 +1,9 @@
 import { lazy, Suspense, useLayoutEffect, useRef } from 'react'
 import { useAbout } from '../../data/useContent.js'
+import { resolveMediaUrl } from '../../api.js'
 // Lanyard（drei + rapier + meshline + GLB）较重，仅进入 about 页时按需加载
 const Lanyard = lazy(() => import('../Lanyard.jsx'))
 import { hideMotionElements } from '../../motion/usePageMotion.js'
-
-// 后台/接口返回的吊牌图片是相对路径（/media/...），拼当前 origin；已是绝对 URL 则原样返回
-function resolveMediaUrl(u) {
-  if (!u) return null
-  if (/^https?:\/\//i.test(u)) return u
-  return window.location.origin + (u.startsWith('/') ? u : `/${u}`)
-}
 
 export default function AboutSection() {
   // 数据由 API 提供；加载中渲染占位，就绪后渲染原结构

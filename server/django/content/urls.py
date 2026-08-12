@@ -14,6 +14,7 @@ urlpatterns = [
     path("token/", TokenObtainPairView.as_view()),
     path("token/refresh/", TokenRefreshView.as_view()),
     path("me/", views.me),
+    path("me/avatar/", views.upload_avatar),
     # 评论与点赞
     path("posts/<str:pk>/comments/", views.comments),
     path("comments/<int:pk>/", views.comment_detail),

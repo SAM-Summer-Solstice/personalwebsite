@@ -16,7 +16,7 @@ from django.db.models import Count, Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode
+from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile
 from .serializers import (
     PostListSerializer,
     PostDetailSerializer,
@@ -34,6 +34,15 @@ logger = logging.getLogger(__name__)
 RESET_CODE_TTL = timedelta(minutes=10)
 RESET_CODE_COOLDOWN = timedelta(seconds=60)
 RESET_CODE_MAX_ATTEMPTS = 5
+
+# 头像大小上限：2MB
+AVATAR_MAX_BYTES = 2 * 1024 * 1024
+
+
+def _avatar_url(user):
+    """用户的头像相对路径（/media/...），未上传返回 None。"""
+    profile = getattr(user, "profile", None)
+    return profile.avatar.url if profile and profile.avatar else None
 
 @api_view(["GET"])
 def posts_list(request):
@@ -143,7 +152,29 @@ def me(request):
             return Response({"detail": "邮箱格式不正确"}, status=400)
         u.email = email
         u.save(update_fields=["email"])
-    return Response({"id": u.id, "username": u.username, "email": u.email, "is_staff": u.is_staff, "is_superuser": u.is_superuser})
+    return Response({"id": u.id, "username": u.username, "email": u.email, "avatar": _avatar_url(u), "is_staff": u.is_staff, "is_superuser": u.is_superuser})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def upload_avatar(request):
+    """上传/更换头像：multipart/form-data（file 必填），限 2MB 且须为合法图片。"""
+    f = request.FILES.get("file")
+    if f is None:
+        return Response({"detail": "缺少 file 字段"}, status=400)
+    if f.size > AVATAR_MAX_BYTES:
+        return Response({"detail": "头像图片不能超过 2MB"}, status=400)
+    try:
+        from PIL import Image
+
+        Image.open(f).verify()
+    except Exception:
+        return Response({"detail": "请上传有效的图片文件"}, status=400)
+    f.seek(0)
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    profile.avatar = f
+    profile.save(update_fields=["avatar"])
+    return Response({"avatar": profile.avatar.url})
 
 
 @api_view(["GET", "POST"])

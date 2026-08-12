@@ -807,6 +807,38 @@
   color: #e06c75;
 }
 
+/* 评论收起/展开：小三角 + 文案，与操作行同风格 */
+.blog-comment-expand {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.blog-comment-expand:hover {
+  color: var(--accent);
+}
+
+.blog-comment-chevron {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.blog-comment-chevron.is-open {
+  transform: rotate(90deg);
+}
+
 /* 回复嵌套：左发丝线 + 缩进（深层级复用同一缩进） */
 .blog-comment-replies {
   margin-top: 6px;

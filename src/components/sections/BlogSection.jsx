@@ -259,15 +259,28 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
     if (resetSignal > 0 && singleMode) onNavigate?.('blog')
   }, [resetSignal, singleMode, onNavigate])
 
-  // 从首页跳转选中某篇：立即定位到该条并播放一次性高亮提示
+  // 从首页跳转选中某篇：播放一次性高亮提示
   useEffect(() => {
     if (!focusId) return
     setFlashId(focusId)
-    // 瞬时定位（不等淡入动画、不用 smooth），避免"先显示在上端再下跳"
-    document.getElementById(`post-${focusId}`)?.scrollIntoView({ block: 'center' })
     const clearTimer = setTimeout(() => setFlashId(null), 3000)
     return () => clearTimeout(clearTimer)
   }, [focusId])
+
+  // 焦点滚动：等列表数据渲染完成后再定位。挂载时数据异步加载、列表元素尚不存在，
+  // 若在首个 effect 里直接 scrollIntoView 会静默失效（页面停在顶部，只有高亮闪一下）。
+  // 手动计算滚动容器的 scrollTop（scrollIntoView 在 iOS 嵌套滚动容器上不可靠）
+  const focusScrolledRef = useRef(false)
+  useEffect(() => {
+    if (!focusId || loading || focusScrolledRef.current) return
+    const el = document.getElementById(`post-${focusId}`)
+    if (!el) return
+    focusScrolledRef.current = true
+    const area = document.querySelector('.content-area')
+    if (!area) return
+    const top = el.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop
+    area.scrollTop = Math.max(0, top - area.clientHeight / 2 + el.offsetHeight / 2)
+  }, [focusId, loading, posts])
 
   // 进入单篇视图（或切换文章）时回到内容区顶部
   useEffect(() => {

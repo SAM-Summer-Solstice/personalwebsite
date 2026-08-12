@@ -64,7 +64,7 @@ function ProjectItem({ project, focused }) {
 
 export default function ProjectsSection({ focusId }) {
   // 数据由 API 提供；loading 期间为空数组（星图与列表为空），排序逻辑保留
-  const { projects } = useProjects()
+  const { projects, loading } = useProjects()
   const [flashId, setFlashId] = useState(null) // 短暂高亮中的条目 id
   const [showLabels, setShowLabels] = useState(false) // 3D 星图全部节点名称常显开关
   const overviewRef = useRef(null)
@@ -87,15 +87,26 @@ export default function ProjectsSection({ focusId }) {
     return () => observer.disconnect()
   }, [])
 
-  // 从首页跳转选中某个项目：立即定位到该条并播放一次性高亮提示
+  // 从首页跳转选中某个项目：播放一次性高亮提示
   useEffect(() => {
     if (!focusId) return
     setFlashId(focusId)
-    // 瞬时定位（不等淡入动画、不用 smooth），避免"先显示在上端再下跳"
-    document.getElementById(`project-${focusId}`)?.scrollIntoView({ block: 'center' })
     const clearTimer = setTimeout(() => setFlashId(null), 3000)
     return () => clearTimeout(clearTimer)
   }, [focusId])
+
+  // 焦点滚动：等数据渲染完成后再定位（挂载时数据异步加载、元素尚不存在，直接 scrollIntoView 会静默失效）
+  const focusScrolledRef = useRef(false)
+  useEffect(() => {
+    if (!focusId || loading || focusScrolledRef.current) return
+    const el = document.getElementById(`project-${focusId}`)
+    if (!el) return
+    focusScrolledRef.current = true
+    const area = document.querySelector('.content-area')
+    if (!area) return
+    const top = el.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop
+    area.scrollTop = Math.max(0, top - area.clientHeight / 2 + el.offsetHeight / 2)
+  }, [focusId, loading, projects])
 
   // 异步项目数据渲染提交后（绘制前）立即隐藏动效元素初始态，消除"先显示→消失→再动画"窗口
   useLayoutEffect(() => {

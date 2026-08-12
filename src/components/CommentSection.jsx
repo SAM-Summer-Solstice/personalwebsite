@@ -43,6 +43,8 @@ export default function CommentSection({ postId, onCountChange }) {
   const [replyTarget, setReplyTarget] = useState(null) // 展开回复表单的评论 id（null 表示收起）
   const [replyText, setReplyText] = useState('')
   const [replying, setReplying] = useState(false)
+  // 已展开回复的评论 id 集合：默认每条评论只展示第一条回复，点击小三角展开其余
+  const [expanded, setExpanded] = useState(() => new Set())
 
   // 拉取评论列表（postId 即文章 slug，切换文章时重新拉取）
   useEffect(() => {
@@ -51,6 +53,7 @@ export default function CommentSection({ postId, onCountChange }) {
     setLoading(true)
     setReplyTarget(null)
     setReplyText('')
+    setExpanded(new Set())
     getComments(postId).then((data) => {
       if (!alive) return
       setComments(data || [])
@@ -129,7 +132,21 @@ export default function CommentSection({ postId, onCountChange }) {
   }
 
   // 递归渲染单条评论：内容 + 操作行 + 内联回复表单 + 嵌套回复
+  // 收起规则：默认只展示第一条回复（主评论 + 首条回复 = 前两条），其余通过小三角展开
   function renderComment(c) {
+    const isExpanded = expanded.has(c.id)
+    const visibleReplies = isExpanded ? c.replies : c.replies.slice(0, 1)
+    const hiddenCount = c.replies.length - visibleReplies.length
+
+    function toggleExpand() {
+      setExpanded((prev) => {
+        const next = new Set(prev)
+        if (next.has(c.id)) next.delete(c.id)
+        else next.add(c.id)
+        return next
+      })
+    }
+
     return (
       <li key={c.id} id={`comment-${c.id}`} className="blog-comment">
         <div className="blog-comment-head">
@@ -184,8 +201,17 @@ export default function CommentSection({ postId, onCountChange }) {
           </form>
         )}
 
-        {c.replies.length > 0 && (
-          <ul className="blog-comment-replies">{c.replies.map(renderComment)}</ul>
+        {visibleReplies.length > 0 && (
+          <ul className="blog-comment-replies">{visibleReplies.map(renderComment)}</ul>
+        )}
+
+        {c.replies.length > 1 && (
+          <button type="button" className="blog-comment-expand" onClick={toggleExpand}>
+            <span className={`blog-comment-chevron${isExpanded ? ' is-open' : ''}`} aria-hidden="true">
+              ▸
+            </span>
+            {isExpanded ? '收起' : `展开 ${hiddenCount} 条回复`}
+          </button>
         )}
       </li>
     )

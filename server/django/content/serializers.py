@@ -1,6 +1,41 @@
+import subprocess
+from pathlib import Path
+
+from django.conf import settings
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 from .models import Post, Project, About, Attachment, Comment, Notification
+
+
+# 「一些数据」里代码提交数的统计结果缓存（提交数只在部署时变化，10 分钟 TTL 避免每次请求都跑 git）
+_GIT_STATS_CACHE = {"t": 0.0, "n": 0}
+_GIT_STATS_TTL = 600
+
+
+def _git_commit_count():
+    """实时统计仓库提交数：在项目根运行 git rev-list --count HEAD，失败返回 0（不阻塞页面）。"""
+    import time
+
+    now = time.monotonic()
+    if now - _GIT_STATS_CACHE["t"] < _GIT_STATS_TTL:
+        return _GIT_STATS_CACHE["n"]
+    repo = Path(settings.BASE_DIR).resolve().parent.parent  # server/django 上两级 = 项目根
+    try:
+        out = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if out.returncode == 0:
+            _GIT_STATS_CACHE["n"] = int(out.stdout.strip() or 0)
+        else:
+            _GIT_STATS_CACHE["n"] = 0
+    except Exception:
+        _GIT_STATS_CACHE["n"] = 0
+    _GIT_STATS_CACHE["t"] = now
+    return _GIT_STATS_CACHE["n"]
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
@@ -102,7 +137,16 @@ class ProjectSerializer(serializers.ModelSerializer):
 class AboutSerializer(serializers.ModelSerializer):
     birthYear = serializers.IntegerField(source="birth_year")
     blogPurpose = serializers.JSONField(source="blog_purpose")
+    # 「一些数据」实时统计：项目/文章数来自数据库，代码提交数来自 git 仓库
+    stats = SerializerMethodField()
 
     class Meta:
         model = About
         fields = ["name", "school", "grade", "birthYear", "intro", "directions", "interests", "stats", "contact", "blogPurpose"]
+
+    def get_stats(self, obj):
+        return [
+            {"label": "项目", "value": Project.objects.count()},
+            {"label": "文章", "value": Post.objects.count()},
+            {"label": "代码提交", "value": _git_commit_count()},
+        ]

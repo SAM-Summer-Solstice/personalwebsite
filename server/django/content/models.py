@@ -111,7 +111,7 @@ class About(models.Model):
     intro = models.JSONField("简介段落", default=list)
     directions = models.JSONField("学习方向", default=list)
     interests = models.JSONField("兴趣爱好", default=list)
-    stats = models.JSONField("一些数据 [{label,value}]", default=list)
+    # 「一些数据」不再存字段，由 serializers 实时统计（项目/文章/代码提交数）
     contact = models.JSONField("联系方式 {email,github,location}", default=dict)
     blog_purpose = models.JSONField("博客初衷段落", default=list)
 

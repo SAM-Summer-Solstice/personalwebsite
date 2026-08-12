@@ -5,3 +5,4 @@ django-markdownx==4.0.9
 djangorestframework-simplejwt==5.5.0
 gunicorn==23.0.0
 django-simpleui==2025.1.13
+Pillow==12.3.0

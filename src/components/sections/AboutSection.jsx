@@ -4,6 +4,13 @@ import { useAbout } from '../../data/useContent.js'
 const Lanyard = lazy(() => import('../Lanyard.jsx'))
 import { hideMotionElements } from '../../motion/usePageMotion.js'
 
+// 后台/接口返回的吊牌图片是相对路径（/media/...），拼当前 origin；已是绝对 URL 则原样返回
+function resolveMediaUrl(u) {
+  if (!u) return null
+  if (/^https?:\/\//i.test(u)) return u
+  return window.location.origin + (u.startsWith('/') ? u : `/${u}`)
+}
+
 export default function AboutSection() {
   // 数据由 API 提供；加载中渲染占位，就绪后渲染原结构
   const { about } = useAbout()
@@ -113,7 +120,14 @@ export default function AboutSection() {
 
         <aside className="about-side" aria-label="3D 挂绳吊牌">
           <Suspense fallback={<div className="about-side-placeholder" aria-hidden="true" />}>
-            <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+            {/* 三图由后台 about 接口下发（lanyardImage / cardFrontImage / cardBackImage），未上传时走内置默认 */}
+            <Lanyard
+              position={[0, 0, 20]}
+              gravity={[0, -40, 0]}
+              lanyardImage={resolveMediaUrl(about.lanyardImage)}
+              frontImage={resolveMediaUrl(about.cardFrontImage)}
+              backImage={resolveMediaUrl(about.cardBackImage)}
+            />
           </Suspense>
         </aside>
       </div>

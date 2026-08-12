@@ -1,4 +1,4 @@
-import { useAbout, usePosts, useProjects } from '../../data/useContent.js'
+import { useAbout, usePosts, useProjects, useUsers } from '../../data/useContent.js'
 import './HomeSection.css'
 
 export default function HomeSection({ onNavigate }) {
@@ -6,6 +6,7 @@ export default function HomeSection({ onNavigate }) {
   const { posts } = usePosts()
   const { projects } = useProjects()
   const { about } = useAbout()
+  const { users } = useUsers()
   const recentPosts = posts.slice(0, 3)
   const featuredProjects = projects.slice(0, 3)
   const a = about || {} // 加载中降级为空对象，避免访问字段报错
@@ -15,22 +16,31 @@ export default function HomeSection({ onNavigate }) {
 
       <header className="home-head">
         <h2 className="home-title mono">~</h2>
-        <p className="home-subtitle">欢迎来到我的博客</p>
+        <p className="home-subtitle">你好，很高兴在这里遇见你</p>
       </header>
 
+      {/* 首页极简 hero：只留欢迎语 + 一句话简介，详细个人资料在 about 页 */}
       <div className="home-hero">
-        <h1 className="home-name">
-          {a.name}
+        <h1 className="home-welcome">
+          欢迎来到我的小站
           <span className="home-cursor" aria-hidden="true">▍</span>
         </h1>
-        <p className="home-meta mono">
-          {a.school} · {a.grade} · 出生于 {a.birthYear} 年
-        </p>
         <p className="home-desc">{(a.intro || [])[0]}</p>
-        <div className="home-chips">
-          {(a.directions || []).map((dir) => (
-            <span key={dir} className="home-chip mono">{dir}</span>
+      </div>
+
+      <div className="home-block">
+        <h3 className="home-section-title mono home-title-accent" data-reveal-title>用户墙</h3>
+        <div className="home-users" data-stagger>
+          {users.map((u) => (
+            <div key={u.username} className="home-user">
+              <span className="home-user-avatar mono" aria-hidden="true">
+                {u.username.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="home-user-name">{u.username}</span>
+              <span className="home-user-comments mono">{u.comment_count} 条评论</span>
+            </div>
           ))}
+          {!users.length && <p className="home-users-empty">还没有注册用户，来抢第一个吧</p>}
         </div>
       </div>
 
@@ -74,10 +84,6 @@ export default function HomeSection({ onNavigate }) {
           })}
         </div>
       </div>
-
-      <footer className="home-contact mono" data-reveal>
-        {a.contact?.email} · {a.contact?.github} · {a.contact?.location}
-      </footer>
     </section>
   )
 }

@@ -114,6 +114,10 @@ class About(models.Model):
     # 「一些数据」不再存字段，由 serializers 实时统计（项目/文章/代码提交数）
     contact = models.JSONField("联系方式 {email,github,location}", default=dict)
     blog_purpose = models.JSONField("博客初衷段落", default=list)
+    # 吊牌三图（后台可上传，留空则用前端内置默认）：绳索贴图 / 卡片正面 / 卡片反面
+    lanyard_image = models.ImageField("绳索贴图", upload_to="lanyard/", blank=True)
+    card_front_image = models.ImageField("卡片正面图", upload_to="lanyard/", blank=True)
+    card_back_image = models.ImageField("卡片反面图", upload_to="lanyard/", blank=True)
 
     def __str__(self):
         return self.name

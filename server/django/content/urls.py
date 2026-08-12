@@ -7,6 +7,7 @@ urlpatterns = [
     path("posts/<str:pk>/", views.post_detail),
     path("projects/", views.projects_list),
     path("about/", views.about_detail),
+    path("users/", views.users_list),
     path("views/<str:pk>/", views.increment_views),
     # 用户认证（JWT）
     path("register/", views.register),

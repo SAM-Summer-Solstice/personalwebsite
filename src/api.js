@@ -59,6 +59,11 @@ export function getAbout() {
   return request('/about/')
 }
 
+// 注册用户墙（用户名 + 真实评论数）
+export function getUsers() {
+  return request('/users/')
+}
+
 // 浏览量 +1（会话内一次，由调用方守卫；列表浏览量直接来自 GET /api/posts/，无需单独查询）
 export function incrementViews(id) {
   return request(`/views/${id}/`, { method: 'POST' })

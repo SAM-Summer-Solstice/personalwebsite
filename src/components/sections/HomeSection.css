@@ -23,7 +23,7 @@
   padding: 10vh 0 4vh;
 }
 
-.home-name {
+.home-welcome {
   font-size: clamp(44px, 7vw, 84px);
   font-weight: 700;
   line-height: 1.15;
@@ -33,14 +33,7 @@
 
 .home-cursor {
   color: var(--accent);
-  margin-left: 0.08em; /* 字号随姓名（继承），仅作装饰 */
-}
-
-.home-meta {
-  margin-top: 20px;
-  font-size: 16px;
-  line-height: 1.8;
-  color: var(--text-muted);
+  margin-left: 0.08em; /* 字号随欢迎语（继承），仅作装饰 */
 }
 
 .home-desc {
@@ -51,19 +44,62 @@
   max-width: 640px;
 }
 
-.home-chips {
-  margin-top: 28px;
-  display: flex;
-  flex-wrap: wrap;
+/* ---- 用户墙：注册用户卡片网格 ---- */
+.home-users {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
 }
 
-.home-chip {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--accent-2);
-  margin-right: 14px;
-  margin-bottom: 4px;
+.home-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.home-user:hover {
+  border-color: var(--accent);
+}
+
+.home-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.home-user-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.home-user-comments {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.home-users-empty {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
 /* ---- 预览小节 ---- */
@@ -144,15 +180,6 @@
   color: var(--accent-2);
 }
 
-/* ---- 联系方式 ---- */
-.home-contact {
-  margin-top: 5vh;
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--text-muted);
-  overflow-wrap: break-word;
-}
-
 /* ---- 窄屏 ---- */
 @media (max-width: 768px) {
   .home-section {
@@ -161,14 +188,13 @@
   .home-hero {
     padding: 6vh 0 3vh;
   }
-  .home-name {
-    font-size: clamp(34px, 8.5vw, 48px); /* 姓名缩小 */
+  .home-welcome {
+    font-size: clamp(30px, 8.5vw, 44px); /* 欢迎语缩小 */
   }
   .home-desc {
     font-size: 16px;
   }
-  .home-block,
-  .home-contact {
+  .home-block {
     margin-top: 3vh;
   }
   .home-item {
@@ -180,5 +206,8 @@
   }
   .home-item-title {
     font-size: 16px;
+  }
+  .home-users {
+    grid-template-columns: 1fr; /* 窄屏单列 */
   }
 }

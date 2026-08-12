@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 from .models import Post, Project, About, Attachment, Comment, Notification
@@ -139,10 +140,14 @@ class AboutSerializer(serializers.ModelSerializer):
     blogPurpose = serializers.JSONField(source="blog_purpose")
     # 「一些数据」实时统计：项目/文章数来自数据库，代码提交数来自 git 仓库
     stats = SerializerMethodField()
+    # 吊牌三图（后台上传，返回相对路径 /media/...，前端拼 origin；留空返回 null 走前端默认图）
+    lanyardImage = SerializerMethodField()
+    cardFrontImage = SerializerMethodField()
+    cardBackImage = SerializerMethodField()
 
     class Meta:
         model = About
-        fields = ["name", "school", "grade", "birthYear", "intro", "directions", "interests", "stats", "contact", "blogPurpose"]
+        fields = ["name", "school", "grade", "birthYear", "intro", "directions", "interests", "stats", "contact", "blogPurpose", "lanyardImage", "cardFrontImage", "cardBackImage"]
 
     def get_stats(self, obj):
         return [
@@ -150,3 +155,25 @@ class AboutSerializer(serializers.ModelSerializer):
             {"label": "文章", "value": Post.objects.count()},
             {"label": "代码提交", "value": _git_commit_count()},
         ]
+
+    def get_lanyardImage(self, obj):
+        return obj.lanyard_image.url if obj.lanyard_image else None
+
+    def get_cardFrontImage(self, obj):
+        return obj.card_front_image.url if obj.card_front_image else None
+
+    def get_cardBackImage(self, obj):
+        return obj.card_back_image.url if obj.card_back_image else None
+
+
+class UserStatsSerializer(serializers.ModelSerializer):
+    """注册用户墙：用户名 + 真实评论数（仅已审核），joined 为注册年月。"""
+    comment_count = serializers.IntegerField(read_only=True)
+    joined = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["username", "comment_count", "joined"]
+
+    def get_joined(self, obj):
+        return obj.date_joined.strftime("%Y-%m")

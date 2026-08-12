@@ -1,7 +1,7 @@
 // 内容数据 hooks：从 Django API 拉取数据（fail-open，加载失败返回空数组 / null）。
 // 统一封装 loading 状态，各 section 按需消费，不再依赖构建期的文件批量打包。
 import { useEffect, useState } from 'react'
-import { getPosts, getPost, getProjects, getAbout } from '../api.js'
+import { getPosts, getPost, getProjects, getAbout, getUsers } from '../api.js'
 
 // 数据就绪信号：数据 setState 完成后广播，ContentArea 收到后（防抖合并）触发页面滚动动效初始化，
 // 保证 initPageMotion 在异步子项渲染完成之后执行，避免 stagger 动画因子项缺失而无法创建
@@ -85,4 +85,23 @@ export function useAbout() {
     }
   }, [])
   return { about, loading }
+}
+
+// 注册用户墙（用户名 + 评论数）
+export function useUsers() {
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let alive = true
+    getUsers().then((data) => {
+      if (!alive) return
+      setUsers(data || [])
+      setLoading(false)
+      notifyContentReady()
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  return { users, loading }
 }

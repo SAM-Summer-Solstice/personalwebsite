@@ -36,8 +36,12 @@ RESET_CODE_MAX_ATTEMPTS = 5
 
 @api_view(["GET"])
 def posts_list(request):
-    qs = Post.objects.annotate(
-        comment_count=Count("comments_set", filter=Q(comments_set__is_approved=True))
+    qs = (
+        Post.objects.annotate(
+            comment_count=Count("comments_set", filter=Q(comments_set__is_approved=True))
+        )
+        # 聚合查询会丢弃 Meta.ordering（Django 已知行为），这里显式按日期倒序，否则按插入顺序返回
+        .order_by("-date", "slug")
     )
     return Response(PostListSerializer(qs, many=True, context={"request": request}).data)
 

@@ -1,0 +1,15 @@
+- [x] Attachment 记录删除时，media/attachments/ 下对应文件被删除
+- [x] 删除 Post 时，级联删除的 Attachment 的文件均被删除
+- [x] 更换 Attachment.file 时，旧文件被删除
+- [x] 更换 UserProfile.avatar 时，旧头像被删除
+- [x] UserProfile 删除时，avatar 文件被删除
+- [x] 更换 About.lanyard_image / card_front_image / card_back_image 时，旧图被删除
+- [x] 字段从空变为有值时，不报错、不误删
+- [x] signals 在 content/apps.py 的 ready() 中注册
+- [x] `cleanup_orphan_media` 命令默认 dry-run 只列出，不删除
+- [x] `cleanup_orphan_media --execute` 真正删除孤儿文件
+- [x] 清理命令只影响 media/markdownx/，不碰 attachments/avatars/lanyard
+- [x] 被正文引用的文件不被判为孤儿
+- [x] 所有新增/修改文件通过 py_compile 语法检查
+- [x] 核桃派实测：附件删除后磁盘文件消失
+- [x] 核桃派实测：cleanup_orphan_media dry-run 输出正确

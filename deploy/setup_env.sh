@@ -6,9 +6,26 @@ PY="/home/pi/blog/server/django/.venv/bin/python"
 
 echo "=== 生成 Django SECRET_KEY（原始密钥 + 双引号）==="
 
-KEY=$("$PY" -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
-
-echo "  密钥长度: ${#KEY}"
+# 过滤含 $ 或 # 的密钥：写入 .env 后需被 bash source 解析，$ 会触发变量展开
+MAX_ATTEMPTS=10
+ATTEMPT=0
+KEY=""
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    ATTEMPT=$((ATTEMPT + 1))
+    KEY=$("$PY" -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+    if echo "$KEY" | grep -q '[#$]'; then
+        echo "  尝试 $ATTEMPT: 密钥含 # 或 $，重新生成..."
+        KEY=""
+        continue
+    else
+        echo "  尝试 $ATTEMPT: 密钥符合要求（长度 ${#KEY}）"
+        break
+    fi
+done
+if [ -z "$KEY" ]; then
+    echo "ERROR: 无法生成不含 # $ 的密钥"
+    exit 1
+fi
 
 cat > "$ENV_FILE" <<ENV_EOF
 DJANGO_SECRET_KEY="${KEY}"

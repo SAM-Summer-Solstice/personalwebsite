@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { login as apiLogin, register as apiRegister, getMe, getNotifications, setToken, getToken } from '../api.js'
+import { login as apiLogin, register as apiRegister, getMe, getNotifications, setToken, getToken, UNAUTHORIZED_EVENT } from '../api.js'
 
 // 登录态上下文：user（当前用户，未登录为 null）/ ready（初次 token 校验完成）/
 // authOpen（登录弹窗开关）/ unread（未读通知数）/ panelOpen（用户面板开关）+
@@ -25,6 +25,18 @@ export function AuthProvider({ children }) {
     const d = await getNotifications()
     setUnread(d?.unread_count ?? 0)
   }, [])
+
+  // 任一请求 401（token 过期 / 失效）：api 层已清除本地 token，这里重置用户态并唤起登录
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setUser(null)
+      setUnread(0)
+      setPanelOpen(false)
+      openAuth()
+    }
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+  }, [openAuth])
 
   // 挂载时校验本地 token：有效则拉取用户信息并同步未读数，无效（getMe 返回 null）保持未登录
   useEffect(() => {

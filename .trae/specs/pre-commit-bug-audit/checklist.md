@@ -1,0 +1,13 @@
+- [x] 后端 settings 无错误/不安全配置（DEBUG/SECRET_KEY/ALLOWED_HOSTS/CSRF/MEDIA 正确）
+- [x] 后端业务逻辑无 bug（认证/权限/上传/序列化正确）
+- [x] 文件清理 signals 无误删风险
+- [x] cleanup_orphan_media 不误删被引用文件（MEDIA_URL 前缀正确）
+- [x] 前端 token 管理安全，401 处理正确
+- [x] Markdown 渲染无 XSS 漏洞
+- [x] 前端组件无空状态崩溃/内存泄漏
+- [x] nginx 配置正确（代理/静态/上传大小限制）
+- [x] gunicorn/systemd 配置正确
+- [x] 部署脚本无错误
+- [x] .gitignore 覆盖完整，无敏感信息/生成物入库
+- [x] 所有发现的 bug 已修复并通过语法检查
+- [x] 核桃派实测关键路径验证通过

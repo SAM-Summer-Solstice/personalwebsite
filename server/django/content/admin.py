@@ -66,8 +66,12 @@ class AboutAdmin(admin.ModelAdmin):
         return not About.objects.exists()
 
 
-def _avatar_preview(obj):
-    """头像预览：有图显示圆形缩略图，无图显示占位文字。"""
+def _avatar_preview(self, obj):
+    """头像预览：有图显示圆形缩略图，无图显示占位文字。
+
+    挂到 ModelAdmin/Inline 类上后以 bound method 调用（self=管理类实例），
+    签名必须是 (self, obj)，否则 admin 列表/只读字段渲染报 TypeError。
+    """
     if obj and obj.avatar:
         return mark_safe(f'<img src="{obj.avatar.url}" height="44" style="border-radius:50%;object-fit:cover">')
     return "未上传"

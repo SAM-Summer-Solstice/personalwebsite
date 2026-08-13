@@ -101,7 +101,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -136,3 +136,43 @@ SIMPLEUI_DEFAULT_THEME = "simpleui-mobile.css"
 MARKDOWNX_MEDIA_PATH = "markdownx/"
 MARKDOWNX_UPLOAD_CONTENT_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/ogg"]
 MARKDOWNX_UPLOAD_MAX_SIZE = 100 * 1024 * 1024
+
+# 日志：生产环境 DEBUG=False 时 Django 默认日志被 require_debug_true 过滤，
+# 导致 500 traceback 不落盘/不进 journal。这里显式输出到 stderr（systemd/gunicorn 捕获）。
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

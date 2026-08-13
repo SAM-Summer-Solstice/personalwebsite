@@ -43,7 +43,7 @@ export default function HomeSection({ onNavigate }) {
                 />
               ) : (
                 <span className="home-user-avatar is-fallback mono" aria-hidden="true">
-                  {u.username.slice(0, 1).toUpperCase()}
+                  {(u.username || '').slice(0, 1).toUpperCase()}
                 </span>
               )}
               {/* hover 才显示用户名与评论数，默认保持纯头像墙 */}

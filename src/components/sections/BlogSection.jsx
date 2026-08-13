@@ -161,7 +161,7 @@ function BlogSingle({ post, onBack }) {
         <div className="blog-single-meta">
           <span className="blog-card-date mono">{post.date}</span>
           <div className="blog-card-tags">
-            {post.tags.map((tag) => (
+            {(post.tags || []).map((tag) => (
               <span key={tag} className="chip">{tag}</span>
             ))}
           </div>

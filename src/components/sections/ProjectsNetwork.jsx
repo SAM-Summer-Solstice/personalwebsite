@@ -70,7 +70,7 @@ function NetworkScene({ projects, showLabels }) {
     const list = []
     const seen = new Set()
     for (const p of projects) {
-      for (const rId of p.related) {
+      for (const rId of p.related || []) {
         const key = [p.id, rId].sort().join('|')
         if (seen.has(key)) continue
         seen.add(key)

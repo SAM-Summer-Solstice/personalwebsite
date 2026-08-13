@@ -5,6 +5,9 @@ const BASE = '/api'
 // JWT access token 的 localStorage 键名
 const TOKEN_KEY = 'blog_token'
 
+// 会话失效（401）时广播的事件名：api 层清除本地 token，AuthContext 监听后重置用户态并唤起登录
+export const UNAUTHORIZED_EVENT = 'auth:unauthorized'
+
 // 读取本地保存的 access token（未登录返回 null）
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
@@ -14,6 +17,12 @@ export function getToken() {
 export function setToken(t) {
   if (t) localStorage.setItem(TOKEN_KEY, t)
   else localStorage.removeItem(TOKEN_KEY)
+}
+
+// 任一请求收到 401（token 过期 / 失效）：清除本地 token 并广播，由 AuthContext 重置用户态
+export function notifyUnauthorized() {
+  setToken(null)
+  window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))
 }
 
 // 已登录时给请求附带 Authorization: Bearer <token>，未登录返回空对象
@@ -31,14 +40,21 @@ export function resolveMediaUrl(u) {
 
 async function request(path, options) {
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...(options?.headers || {}),
+    }
     const res = await fetch(BASE + path, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders(),
-        ...(options?.headers || {}),
-      },
+      headers,
     })
+    // 仅当本次请求实际携带了 Authorization 头时，401 才视为会话失效：
+    // 避免登录接口输错密码等「未携带 token 的 401」误清掉已有登录态。
+    if (res.status === 401 && headers.Authorization) {
+      notifyUnauthorized()
+      return null
+    }
     if (!res.ok) return null
     return await res.json()
   } catch {
@@ -119,7 +135,13 @@ export function uploadAvatar(file) {
       headers: { ...authHeaders() },
       body: fd,
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (res.status === 401) {
+          notifyUnauthorized()
+          return null
+        }
+        return res.ok ? res.json() : null
+      })
       .then(resolve)
       .catch(() => resolve(null))
   })

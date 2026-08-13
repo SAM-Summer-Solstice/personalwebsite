@@ -19,6 +19,13 @@ cd $DJANGO_DIR
 # 2. 激活虚拟环境
 source $DJANGO_DIR/.venv/bin/activate
 
+# 加载 .env 环境变量（prod 设置需要 DJANGO_SECRET_KEY 等）
+if [ -f "$DJANGO_DIR/.env" ]; then
+    set -a
+    source "$DJANGO_DIR/.env"
+    set +a
+fi
+
 # 3. 安装依赖（首次部署或 requirements 变更时需要，日常可注释掉以加速）
 # pip install -r requirements.txt
 

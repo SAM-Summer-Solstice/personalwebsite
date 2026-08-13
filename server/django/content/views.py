@@ -4,15 +4,19 @@ import os
 import secrets
 from datetime import timedelta
 from pathlib import Path
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from django.core.mail import send_mail
 from django.core.validators import validate_email
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.utils import timezone
 from django.db.models import Count, Q
+from markdownx.forms import ImageForm
+from markdownx.settings import MARKDOWNX_MEDIA_PATH
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -113,6 +117,32 @@ def react_spa(request, path=""):
     if index.is_file():
         return FileResponse(index.open("rb"))
     raise Http404
+
+
+def markdownx_upload(request):
+    """markdownx 编辑器上传接口（替代默认 ImageUploadView）。
+
+    markdownx 4.0.9 的 ImageForm.save() 会对所有非 SVG/GIF 文件调用 PIL 处理，
+    mp4/webm/ogg 视频会直接抛异常导致 500。这里复用其类型/大小校验，
+    但保存时跳过 PIL：图片直接落盘，视频落盘并返回 <video> 标签。
+    """
+    form = ImageForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return JsonResponse(form.errors, status=400)
+
+    upload = request.FILES["image"]
+    ext = os.path.splitext(upload.name)[1]
+    unique_name = f"{uuid4().hex}{ext}"
+    full_path = os.path.join(MARKDOWNX_MEDIA_PATH, unique_name)
+    saved_path = default_storage.save(full_path, upload)
+    url = default_storage.url(saved_path)
+
+    if upload.content_type.startswith("video/"):
+        # 视频：marked 会把 ![]() 渲染成 <img>，必须用 <video> 标签才能播放
+        image_code = f'<video src="{url}" controls></video>'
+    else:
+        image_code = f"![]({url})"
+    return JsonResponse({"image_code": image_code})
 
 
 @api_view(["POST"])

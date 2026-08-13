@@ -32,6 +32,7 @@ if [ -z "$KEY" ]; then
 fi
 cat > "$ENV_FILE" <<ENV_EOF
 DJANGO_SECRET_KEY="${KEY}"
+DJANGO_SETTINGS_MODULE=blog_backend.settings.prod
 DJANGO_ALLOWED_HOSTS=www.xuzixuan.top,10.83.36.241,100.93.171.11,localhost
 DJANGO_CSRF_TRUSTED_ORIGINS=https://www.xuzixuan.top,http://10.83.36.241,http://100.93.171.11,http://localhost
 ENV_EOF

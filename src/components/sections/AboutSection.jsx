@@ -54,7 +54,7 @@ export default function AboutSection() {
 
           <div className="about-section">
             <h4 className="about-section-title mono">个人介绍</h4>
-            {about.intro.map((para, i) => (
+            {(about.intro || []).map((para, i) => (
               <p key={i} className="about-paragraph">{para}</p>
             ))}
           </div>
@@ -62,7 +62,7 @@ export default function AboutSection() {
           <div className="about-section">
             <h4 className="about-section-title mono">学习方向</h4>
             <div className="direction-chips">
-              {about.directions.map((dir) => (
+              {(about.directions || []).map((dir) => (
                 <span key={dir} className="chip">{dir}</span>
               ))}
             </div>
@@ -71,7 +71,7 @@ export default function AboutSection() {
           <div className="about-section">
             <h4 className="about-section-title mono">兴趣爱好</h4>
             <ul className="interest-list">
-              {about.interests.map((item) => (
+              {(about.interests || []).map((item) => (
                 <li key={item} className="chip">{item}</li>
               ))}
             </ul>
@@ -80,7 +80,7 @@ export default function AboutSection() {
           <div className="about-section">
             <h4 className="about-section-title mono">一些数据</h4>
             <p className="about-stats-line">
-              {about.stats.map((stat, i) => (
+              {(about.stats || []).map((stat, i) => (
                 <span key={stat.label}>
                   {i > 0 && <span aria-hidden="true"> · </span>}
                   <span className="stat mono">{stat.value}</span> {stat.label}
@@ -93,20 +93,20 @@ export default function AboutSection() {
             <h4 className="about-section-title mono">联系方式</h4>
             <div className="contact-list">
               <div className="contact-item mono">
-                <span className="contact-label">email</span> · {about.contact.email}
+                <span className="contact-label">email</span> · {about.contact?.email}
               </div>
               <div className="contact-item mono">
-                <span className="contact-label">github</span> · {about.contact.github}
+                <span className="contact-label">github</span> · {about.contact?.github}
               </div>
               <div className="contact-item mono">
-                <span className="contact-label">location</span> · {about.contact.location}
+                <span className="contact-label">location</span> · {about.contact?.location}
               </div>
             </div>
           </div>
 
           <div className="about-section">
             <h4 className="about-section-title mono">博客初衷</h4>
-            {about.blogPurpose.map((para, i) => (
+            {(about.blogPurpose || []).map((para, i) => (
               <p key={i} className="about-paragraph">{para}</p>
             ))}
           </div>

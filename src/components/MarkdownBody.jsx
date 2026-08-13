@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 // 工科主流文件格式 → 展示类别：code（代码/脚本/配置）/ doc（文档/表格/演示/文本）/
 // model（3D/CAD/仿真/科学数据/嵌入式固件）/ media（图片/音视频）/ other（压缩包/可执行）
@@ -89,7 +90,7 @@ export default function MarkdownBody({ postId, markdown, onHeadings }) {
       return `<figure class="md-figure"><img src="${href}"${t} alt="${alt}" loading="lazy" /></figure>\n`
     }
 
-    const result = marked.parse(markdown, { renderer })
+    const result = DOMPurify.sanitize(marked.parse(markdown, { renderer }))
     headingsRef.current = headings
     return result
   }, [postId, markdown])

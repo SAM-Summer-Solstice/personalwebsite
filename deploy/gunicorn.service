@@ -17,6 +17,8 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/blog/server/django
 EnvironmentFile=/home/pi/blog/server/django/.env
+# 强制使用生产配置，避免 .env 缺失 DJANGO_SETTINGS_MODULE 时回落到 dev（DEBUG=True）
+Environment=DJANGO_SETTINGS_MODULE=blog_backend.settings.prod
 ExecStart=/home/pi/blog/server/django/.venv/bin/gunicorn \
     --workers 2 \
     --bind 127.0.0.1:8000 \

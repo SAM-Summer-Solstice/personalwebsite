@@ -120,7 +120,7 @@ export default function ProjectsSection({ focusId }) {
   const doneCount = projects.filter((p) => p.status === '已完成').length
   const doingCount = projects.filter((p) => p.status === '进行中').length
   const planningCount = projects.filter((p) => p.status === '规划中').length
-  const techs = [...new Set(projects.flatMap((p) => p.tech))].slice(0, 8)
+  const techs = [...new Set(projects.flatMap((p) => p.tech || []))].slice(0, 8)
   const latest = sorted[0]
 
   return (

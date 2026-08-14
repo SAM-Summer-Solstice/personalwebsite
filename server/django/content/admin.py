@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.admin.models import LogEntry
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -38,11 +39,12 @@ class PostAdmin(MarkdownxModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    """评论管理：支持批量审核通过/驳回（含敏感词/举报进入队列的待审评论）。"""
+    """评论管理：支持批量审核通过/驳回（含敏感词/举报进入队列的待审评论）；待审置顶。"""
     list_display = ("post", "author", "parent", "likes", "created_at", "is_approved")
     list_filter = ("is_approved",)
     search_fields = ("content", "author__username")
     actions = ["approve_comments", "reject_comments"]
+    ordering = ("is_approved", "-created_at")  # 待审（False）在前，方便处理队列
 
     @admin.action(description="通过选中评论")
     def approve_comments(self, request, queryset):
@@ -276,3 +278,31 @@ class UserProfileAdmin(admin.ModelAdmin):
         return "—"
 
     mute_until_display.short_description = "禁言至"
+
+
+@admin.register(LogEntry)
+class LogEntryAdmin(admin.ModelAdmin):
+    """管理员操作日志（只读）：审计后台关键操作（禁言/审核/发布等）。"""
+    list_display = ("action_time", "user", "flag", "object_repr", "change_message_short")
+    list_filter = ("user", "action_flag")
+    search_fields = ("object_repr", "change_message")
+    ordering = ("-action_time",)
+
+    def flag(self, obj):
+        return {1: "新增", 2: "修改", 3: "删除"}.get(obj.action_flag, obj.action_flag)
+
+    flag.short_description = "动作"
+
+    def change_message_short(self, obj):
+        return (obj.change_message or "").replace('"', "").replace("[", "").replace("]", "")[:80]
+
+    change_message_short.short_description = "变更内容"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

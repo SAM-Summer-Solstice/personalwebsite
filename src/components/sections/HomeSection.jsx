@@ -1,16 +1,24 @@
-import { useAbout, usePosts, useProjects, useUsers } from '../../data/useContent.js'
+import { useLayoutEffect } from 'react'
+import { useAbout, usePosts, useProjects, useUsers, notifyContentReady } from '../../data/useContent.js'
 import { resolveMediaUrl } from '../../api.js'
 import './HomeSection.css'
 
 export default function HomeSection({ onNavigate }) {
   // 数据由 API 提供；loading 期间为空数组 / null，组件结构不变
-  const { posts } = usePosts()
-  const { projects } = useProjects()
-  const { about } = useAbout()
-  const { users } = useUsers()
+  const { posts, loading: postsLoading } = usePosts()
+  const { projects, loading: projectsLoading } = useProjects()
+  const { about, loading: aboutLoading } = useAbout()
+  const { users, loading: usersLoading } = useUsers()
   const recentPosts = posts.slice(0, 3)
   const featuredProjects = projects.slice(0, 3)
   const a = about || {} // 加载中降级为空对象，避免访问字段报错
+
+  // 数据已在缓存（切页回到首页）时主动广播 content-ready，触发动效初始化，
+  // 否则首页元素会停留在 hideMotionElements 注入的隐藏态（与 posts 列表同类问题）
+  const ready = !postsLoading && !projectsLoading && !aboutLoading && !usersLoading
+  useLayoutEffect(() => {
+    if (ready) notifyContentReady()
+  }, [ready])
 
   return (
     <section className="home-section" aria-label="首页">

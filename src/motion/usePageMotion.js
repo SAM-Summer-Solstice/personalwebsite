@@ -118,7 +118,11 @@ export function initPageMotion(scope) {
 
     // 模块标题：遮罩揭开（clip-path 从下往上）+ 位移 + 轻微压缩归位
     scope.querySelectorAll('[data-reveal-title]').forEach((el) => {
-      if (shouldSkip(el)) return
+      if (shouldSkip(el)) {
+        // 跳过动画时必须还原 hideMotionElements 注入的隐藏态，否则标题被 clip 全裁/位移，顶部留白
+        gsap.set(el, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, scaleY: 1 })
+        return
+      }
       gsap.fromTo(
         el,
         { clipPath: 'inset(0% 0% 100% 0%)', y: 46, scaleY: 1.14, transformOrigin: '0 100%' },
@@ -140,6 +144,8 @@ export function initPageMotion(scope) {
       if (!items.length) return
       // 容器级可覆盖上限（data-stagger-limit），默认 STAGGER_LIMIT=6 克制化
       const limit = Number(container.dataset.staggerLimit) || STAGGER_LIMIT
+      // 跳过动画的条目需还原隐藏态，避免深滚动恢复/焦点定位后条目透明不可见
+      items.filter((el) => shouldSkip(el)).forEach((el) => gsap.set(el, { y: 0, opacity: 1 }))
       const animated = items.filter((el) => !shouldSkip(el)).slice(0, limit)
       if (!animated.length) return
       const step = Math.min(0.07, 1.1 / animated.length)
@@ -159,7 +165,10 @@ export function initPageMotion(scope) {
 
     // 单元素轻量进场
     scope.querySelectorAll('[data-reveal]').forEach((el) => {
-      if (shouldSkip(el)) return
+      if (shouldSkip(el)) {
+        gsap.set(el, { y: 0, opacity: 1 })
+        return
+      }
       gsap.fromTo(
         el,
         { y: 22, opacity: 0 },
@@ -175,7 +184,11 @@ export function initPageMotion(scope) {
 
     // Markdown 正文图片：img reveal（轻微放大 + 淡入），figure 视差（滚动 scrub）
     scope.querySelectorAll('.md-figure').forEach((fig) => {
-      if (shouldSkip(fig)) return
+      if (shouldSkip(fig)) {
+        const img = fig.querySelector('img')
+        if (img) gsap.set(img, { scale: 1, opacity: 1 })
+        return
+      }
       const img = fig.querySelector('img')
       if (!img) return
       gsap.fromTo(

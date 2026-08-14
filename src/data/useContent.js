@@ -5,7 +5,9 @@ import { getPosts, getPost, getProjects, getAbout, getUsers } from '../api.js'
 
 // 数据就绪信号：数据 setState 完成后广播，ContentArea 收到后（防抖合并）触发页面滚动动效初始化，
 // 保证 initPageMotion 在异步子项渲染完成之后执行，避免 stagger 动画因子项缺失而无法创建
-function notifyContentReady() {
+// （导出供各 section 复用：数据在 AppShell 已缓存、切页挂载时不会再触发 hook 的 ready 广播，
+// 此时由 section 主动广播，否则元素被 hideMotionElements 隐藏后无人恢复，出现"整页内容不可见"）
+export function notifyContentReady() {
   window.dispatchEvent(new CustomEvent('app:content-ready'))
 }
 

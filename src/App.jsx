@@ -76,8 +76,11 @@ function AppShell() {
   function handleNavigate(tab, id) {
     // blog 带 id（首页最近文章）→ 进列表并携带高亮 id；列表内点卡片由 BlogSection 直接进单篇
     const target = tab === 'blog' && id ? '/posts' : tabToPath(tab, id)
-    // 重复点击当前 tab（已是目标路径且无 id）→ 触发该页重置信号
-    if (location.pathname === target && !id) setNavTick((n) => n + 1)
+    // 重复点击当前 tab（已是目标路径且无 id）→ 触发该页重置信号 + 滚动回顶部
+    if (location.pathname === target && !id) {
+      setNavTick((n) => n + 1)
+      document.querySelector('.content-area')?.scrollTo({ top: 0, behavior: 'smooth' })
+    }
     navigate(target, { state: id ? { focusId: id } : undefined })
   }
 

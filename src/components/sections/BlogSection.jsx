@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { usePosts, usePost } from '../../data/useContent.js'
+import { usePosts, usePost, notifyContentReady } from '../../data/useContent.js'
 import { incrementViews, toggleLike } from '../../api.js'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import MarkdownBody from '../MarkdownBody.jsx'
@@ -254,8 +254,20 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
     if (rootRef.current) hideMotionElements(rootRef.current)
   }, [loading, postLoading, post])
 
-  // 重复点击导航 posts：单篇模式（路由含 :postId）时回到 /posts 列表
+  // 列表模式且数据已就绪（切页挂载 / 从单篇返回时 posts 已在缓存）：主动广播 content-ready 触发动效初始化。
+  // 数据在 AppShell 已缓存时 usePosts 不会再发 ready 信号，而 ContentArea 切页时已把 motionEpoch 归零，
+  // 若不广播，列表卡片会停留在 hideMotionElements 注入的隐藏态（opacity:0）——即"跳转到 posts 页却看不到文章"。
+  useLayoutEffect(() => {
+    if (!singleMode && !loading) notifyContentReady()
+  }, [singleMode, loading])
+
+  // 重复点击导航 posts：单篇模式（路由含 :postId）时回到 /posts 列表。
+  // resetSignal 是永久递增的状态，必须在信号值发生变化时只消费一次：
+  // 否则历史信号会在之后每次进入单篇时把用户立刻弹回列表（移动端常见路径：先点过导航 posts，再点文章卡片）。
+  const lastResetRef = useRef(resetSignal)
   useEffect(() => {
+    if (resetSignal === lastResetRef.current) return
+    lastResetRef.current = resetSignal
     if (resetSignal > 0 && singleMode) onNavigate?.('blog')
   }, [resetSignal, singleMode, onNavigate])
 
@@ -269,7 +281,8 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
 
   // 焦点滚动：等列表数据渲染完成后再定位。挂载时数据异步加载、列表元素尚不存在，
   // 若在首个 effect 里直接 scrollIntoView 会静默失效（页面停在顶部，只有高亮闪一下）。
-  // 手动计算滚动容器的 scrollTop（scrollIntoView 在 iOS 嵌套滚动容器上不可靠）
+  // 手动计算滚动容器的 scrollTop（scrollIntoView 在 iOS 嵌套滚动容器上不可靠）；
+  // 定位到视口上端（留 16px 呼吸空间）而非居中，确保用户从首页跳转后一眼在页面上端看到目标文章
   const focusScrolledRef = useRef(false)
   useEffect(() => {
     if (!focusId || loading || focusScrolledRef.current) return
@@ -279,7 +292,7 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
     const area = document.querySelector('.content-area')
     if (!area) return
     const top = el.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop
-    area.scrollTop = Math.max(0, top - area.clientHeight / 2 + el.offsetHeight / 2)
+    area.scrollTop = Math.max(0, top - 16)
   }, [focusId, loading, posts])
 
   // 进入单篇视图（或切换文章）时回到内容区顶部

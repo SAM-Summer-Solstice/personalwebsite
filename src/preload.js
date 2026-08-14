@@ -10,10 +10,16 @@ export function startPreload() {
   if (started) return
   started = true
 
-  const schedule = (fn) => {
+  // 移动端（粗指针/窄屏）：Lanyard chunk 约 2.4MB，解析与 GLB 拉取会和弱手机的
+  // 首屏渲染、首次导航抢资源造成卡顿。移动端推迟到用户首次交互后再预取（视觉无变化）
+  const isMobile =
+    (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+    window.innerWidth < 640
+
+  const schedule = (fn, timeout = 4000) => {
     if (typeof window.requestIdleCallback === 'function') {
-      // timeout 兜底：即使持续无空闲，4s 后也必须执行
-      window.requestIdleCallback(fn, { timeout: 4000 })
+      // timeout 兜底：即使持续无空闲也必须执行
+      window.requestIdleCallback(fn, { timeout })
     } else {
       window.setTimeout(fn, 1200)
     }
@@ -38,8 +44,22 @@ export function startPreload() {
   // load 事件可能早于 React useEffect 触发（快速命中缓存时），
   // 用 readyState 判断兜底，避免监听器注册晚了导致预取永不触发
   if (document.readyState === 'complete') {
-    prefetch()
+    if (isMobile) {
+      // 等首次触摸/点击后再预取（once 保证只触发一次）
+      window.addEventListener('pointerdown', prefetch, { once: true, passive: true })
+      window.addEventListener('touchend', prefetch, { once: true, passive: true })
+    } else {
+      prefetch()
+    }
   } else {
-    window.addEventListener('load', prefetch, { once: true })
+    const onLoad = () => {
+      if (isMobile) {
+        window.addEventListener('pointerdown', prefetch, { once: true, passive: true })
+        window.addEventListener('touchend', prefetch, { once: true, passive: true })
+      } else {
+        prefetch()
+      }
+    }
+    window.addEventListener('load', onLoad, { once: true })
   }
 }

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useProjects } from '../../data/useContent.js'
+import { useProjects, notifyContentReady } from '../../data/useContent.js'
 import { hideMotionElements } from '../../motion/usePageMotion.js'
 // ProjectsNetwork（three + drei TrackballControls）较重，仅进入 projects 页时按需加载
 const ProjectsNetwork = lazy(() => import('./ProjectsNetwork.jsx'))
@@ -95,7 +95,8 @@ export default function ProjectsSection({ focusId }) {
     return () => clearTimeout(clearTimer)
   }, [focusId])
 
-  // 焦点滚动：等数据渲染完成后再定位（挂载时数据异步加载、元素尚不存在，直接 scrollIntoView 会静默失效）
+  // 焦点滚动：等数据渲染完成后再定位（挂载时数据异步加载、元素尚不存在，直接 scrollIntoView 会静默失效）；
+  // 定位到视口上端（留 16px）而非居中，与博客列表焦点行为一致
   const focusScrolledRef = useRef(false)
   useEffect(() => {
     if (!focusId || loading || focusScrolledRef.current) return
@@ -105,13 +106,19 @@ export default function ProjectsSection({ focusId }) {
     const area = document.querySelector('.content-area')
     if (!area) return
     const top = el.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop
-    area.scrollTop = Math.max(0, top - area.clientHeight / 2 + el.offsetHeight / 2)
+    area.scrollTop = Math.max(0, top - 16)
   }, [focusId, loading, projects])
 
   // 异步项目数据渲染提交后（绘制前）立即隐藏动效元素初始态，消除"先显示→消失→再动画"窗口
   useLayoutEffect(() => {
     if (rootRef.current) hideMotionElements(rootRef.current)
   }, [projects])
+
+  // 数据已在缓存（切页进入 projects）时主动广播 content-ready 触发动效初始化，
+  // 否则星图/列表元素会停留在隐藏初始态（与 posts 列表同类问题）
+  useLayoutEffect(() => {
+    if (!loading && projects.length) notifyContentReady()
+  }, [loading, projects.length])
 
   // 按日期从新到旧排序
   const sorted = [...projects].sort((a, b) => new Date(b.date) - new Date(a.date))

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useLayoutEffect, useRef } from 'react'
-import { useAbout } from '../../data/useContent.js'
+import { useAbout, notifyContentReady } from '../../data/useContent.js'
 import { resolveMediaUrl } from '../../api.js'
 // Lanyard（drei + rapier + meshline + GLB）较重，仅进入 about 页时按需加载
 const Lanyard = lazy(() => import('../Lanyard.jsx'))
@@ -14,6 +14,9 @@ export default function AboutSection() {
   // 消除"内容先显示 → 防抖后再隐藏 → 滚动进场"的 FOUC 闪动（幂等，可重复调用）
   useLayoutEffect(() => {
     if (rootRef.current) hideMotionElements(rootRef.current)
+    // 数据已在缓存（切页进入 about）时主动广播 content-ready 触发动效初始化，
+    // 否则内容会停留在隐藏初始态（与 posts 列表同类问题）
+    if (about) notifyContentReady()
   }, [about])
 
   if (!about) {

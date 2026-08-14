@@ -3,11 +3,8 @@ import { runCommand, autocomplete } from '../terminal/commands.js'
 import './Terminal.css'
 
 const BANNER = [
-  { text: '', cls: 'normal' },
-  { text: '  ~/blog — 混合终端博客', cls: 'accent' },
-  { text: '  xzx · 北京理工大学 自动化 · 机器人 / 运动控制 / 具身智能', cls: 'normal' },
-  { text: '  ===============================================================', cls: 'muted' },
-  { text: '  输入 help 查看可用命令', cls: 'muted' },
+  { text: 'XU Shell [版本 1.0.0]', cls: 'muted' },
+  { text: '(c) XU. 保留所有权利。', cls: 'muted' },
   { text: '', cls: 'normal' },
 ]
 
@@ -194,7 +191,7 @@ export default function Terminal({ activeTab, onNavigate, onEasterEgg, matrixAct
     // 用户输入行立即回显（不参与打字），输出部分逐字打出
     const block = {
       id: idRef.current++,
-      prompt: `xzx@blog:${cwd}$ ${raw}`,
+      prompt: `XU@blog:${cwd}> ${raw}`,
       lines,
     }
     setBlocks((prev) => [...prev, block])
@@ -312,7 +309,7 @@ export default function Terminal({ activeTab, onNavigate, onEasterEgg, matrixAct
           <i className="term-dot term-dot-two" />
           <i className="term-dot term-dot-three" />
         </span>
-        <span className="term-title mono">xzx@blog: {cwd} — bash</span>
+        <span className="term-title mono">XU@blog: {cwd}</span>
         <button
           type="button"
           className="term-toggle mono"
@@ -333,10 +330,10 @@ export default function Terminal({ activeTab, onNavigate, onEasterEgg, matrixAct
 
       <form className="term-input-row mono" onSubmit={handleSubmit}>
         <span className="term-prompt">
-          <span className="term-prompt-user">xzx@blog</span>
+          <span className="term-prompt-user">XU@blog</span>
           <span>:</span>
           <span className="term-prompt-cwd">{cwd}</span>
-          <span>$</span>
+          <span>&gt;</span>
         </span>
         {!value && !isTyping ? <span className="term-cursor" aria-hidden="true" /> : null}
         <input

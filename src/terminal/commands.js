@@ -44,7 +44,7 @@ function getFiles(about) {
       { text: '愿你的每一个 PID 都能收敛，愿你的每一个倒立摆都能站稳，', cls: 'normal' },
       { text: '愿你在深夜调试代码时，总有一盏灯为你亮着。', cls: 'normal' },
       { text: '', cls: 'normal' },
-      { text: '—— xzx', cls: 'muted' },
+      { text: '—— XU', cls: 'muted' },
     ],
   }
 }
@@ -146,7 +146,7 @@ function clear() {
 function aboutCmd() {
   return {
     lines: [
-      { text: '你好，我是 xzx，北京理工大学自动化学院大二学生，2006 年生。', cls: 'normal' },
+      { text: '你好，我是 XU，BIT 自动化方向学生，2006 年生。', cls: 'normal' },
       { text: '日常在电机、倒立摆、四足机器人与强化学习之间反复横跳。', cls: 'normal' },
       { text: '正在努力把「知行合一」从口号变成调试日志。', cls: 'muted' },
       { text: '（已为你打开「关于」页）', cls: 'success' },
@@ -302,12 +302,12 @@ function psCmd() {
       {
         table: [
           ['PID', 'USER', 'CPU', 'MEM', 'COMMAND'],
-          ['1', 'xzx', '0.1', '0.4', 'this-blog'],
-          ['2', 'xzx', '0.0', '0.1', 'terminal-console'],
+          ['1', 'XU', '0.1', '0.4', 'this-blog'],
+          ['2', 'XU', '0.0', '0.1', 'terminal-console'],
           ['3', 'root', '0.3', '0.2', 'confetti-engine'],
           ['4', 'root', '0.0', '0.0', 'sudo-approval'],
-          ['5', 'xzx', '12.0', '1.1', 'pid-loop @1kHz'],
-          ['6', 'xzx', '0.6', '0.3', 'gait-planner (trot)'],
+          ['5', 'XU', '12.0', '1.1', 'pid-loop @1kHz'],
+          ['6', 'XU', '0.6', '0.3', 'gait-planner (trot)'],
           ['7', 'root', '1.0', '0.5', 'easter-egg-daemon'],
         ],
       },
@@ -326,7 +326,7 @@ function dateCmd() {
 function whoamiCmd() {
   return {
     lines: [
-      { text: 'xzx — 北京理工大学 自动化学院 · 大二 · 2006 年生', cls: 'normal' },
+      { text: 'XU — BIT 自动化 · 2006 年生', cls: 'normal' },
       { text: '（系统提示：以上信息由本机唯一管理员提供，真实可信）', cls: 'muted' },
     ],
   }
@@ -445,12 +445,12 @@ function unameCmd() {
 function pingCmd() {
   return {
     lines: [
-      { text: 'PING xzx.blog (127.0.0.1) 56(84) bytes of data.', cls: 'normal' },
+      { text: 'PING xu.blog (127.0.0.1) 56(84) bytes of data.', cls: 'normal' },
       { text: '64 bytes from 127.0.0.1: icmp_seq=1 ttl=64 time=0.042 ms', cls: 'normal' },
       { text: '64 bytes from 127.0.0.1: icmp_seq=2 ttl=64 time=0.038 ms', cls: 'normal' },
       { text: '64 bytes from 127.0.0.1: icmp_seq=3 ttl=64 time=0.051 ms', cls: 'normal' },
       { text: '', cls: 'normal' },
-      { text: '--- xzx.blog ping statistics ---', cls: 'muted' },
+      { text: '--- xu.blog ping statistics ---', cls: 'muted' },
       { text: '3 packets transmitted, 3 received, 0% packet loss', cls: 'muted' },
       { text: '（这个延迟比你上次回消息的时间短多了）', cls: 'muted' },
     ],
@@ -476,7 +476,7 @@ function exitCmd() {
 function hiCmd() {
   return {
     lines: [
-      { text: 'hi！我是 xzx，欢迎光临。', cls: 'normal' },
+      { text: 'hi！我是 XU，欢迎光临。', cls: 'normal' },
       { text: '想聊点什么？试试 help，或者直接对终端说点心里话 ❤', cls: 'muted' },
     ],
   }

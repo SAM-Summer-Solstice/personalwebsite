@@ -83,9 +83,9 @@ class Command(BaseCommand):
 
         if not About.objects.exists():
             about = {
-                "name": "小拾（暂用占位昵称）",
-                "school": "北京理工大学 自动化学院",
-                "grade": "大二 · 2024级",
+                "name": "XU",
+                "school": "BIT AUTOMATION",
+                "grade": "2024",
                 "birth_year": 2006,
                 "intro": [
                     "你好，欢迎来到我的小站。我是一个对机器人、运动控制与具身智能充满好奇的大学生，喜欢把电机转起来、把倒立摆立起来、让小车自己跑起来，也喜欢把这一切写成文字。",
@@ -99,15 +99,15 @@ class Command(BaseCommand):
                 ],
                 "interests": ["嵌入式开发", "开源硬件", "街拍与摄影", "科幻小说", "深夜写代码时听后摇"],
                 "contact": {
-                    "email": "hello@bit.edu.cn 占位",
-                    "github": "https://github.com/your-name 占位",
-                    "location": "北京",
+                    "email": "",
+                    "github": "",
+                    "location": "Beijing",
                 },
                 "blog_purpose": [
                     "写博客最初是为了逼自己把问题想清楚：一个知识点如果能用大白话讲给别人听，才算真正掌握。后来发现，记录本身也成了学习的一部分。",
                     "这里既会有严肃的技术笔记，也会有失败现场的完整复盘——因为踩过的坑，往往比成功的参数更有分享价值。希望这些文字对同样在路上的你有哪怕一点帮助。",
                 ],
             }
-            # 以上值来自 src/data/about.js 的真实内容（name/school/grade/intro/directions/interests/contact/stats/blogPurpose）
+            # 首次建库的默认 About 记录；线上实际内容以后台（/admin/）维护为准
             About.objects.create(**about)
             self.stdout.write("About 初始记录已创建")

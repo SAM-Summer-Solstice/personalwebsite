@@ -39,3 +39,8 @@ content/projects/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# 本地验证工具与浏览器测试产物（不提交）
+.verify-tmp/
+_chrome_prof/
+test-results/

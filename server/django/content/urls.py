@@ -19,7 +19,12 @@ urlpatterns = [
     # 评论与点赞
     path("posts/<str:pk>/comments/", views.comments),
     path("comments/<int:pk>/", views.comment_detail),
+    path("comments/<int:pk>/report/", views.report_comment),
+    path("comments/<int:pk>/like/", views.toggle_comment_like),
     path("posts/<str:pk>/like/", views.toggle_like),
+    # 收藏
+    path("posts/<str:pk>/favorite/", views.toggle_favorite),
+    path("favorites/", views.favorites_list),
     # 通知（站内 + 已读）
     path("notifications/", views.notifications),
     path("notifications/read/", views.notifications_read_all),

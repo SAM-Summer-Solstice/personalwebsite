@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.jsx'
-import { getNotifications, markNotificationsRead, markNotificationRead, updateMe, uploadAvatar, resolveMediaUrl } from '../api.js'
+import {
+  getNotifications,
+  markNotificationsRead,
+  markNotificationRead,
+  updateMe,
+  uploadAvatar,
+  getFavorites,
+  resolveMediaUrl,
+} from '../api.js'
 import './UserPanel.css'
 import './AuthModal.css' // 复用 .auth-modal-tab / .auth-submit / .auth-input / .auth-field 等表单样式
 
@@ -17,8 +25,9 @@ function formatTime(iso) {
 export default function UserPanel() {
   const { panelOpen, closePanel, user, logout, refreshUnread, refreshUser } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('messages') // 'messages' | 'profile'
+  const [tab, setTab] = useState('messages') // 'messages' | 'profile' | 'favorites'
   const [notifications, setNotifications] = useState([])
+  const [favorites, setFavorites] = useState([])
   const [email, setEmail] = useState('')
   const [bio, setBio] = useState('')
   const [saving, setSaving] = useState(false)
@@ -26,7 +35,7 @@ export default function UserPanel() {
   const [avatarMsg, setAvatarMsg] = useState('')
   const avatarInputRef = useRef(null)
 
-  // 打开面板：重置到消息 tab、预填邮箱/签名、拉取通知；ESC / 遮罩点击关闭
+  // 打开面板：重置到消息 tab、预填邮箱/签名、拉取通知与收藏；ESC / 遮罩点击关闭
   useEffect(() => {
     if (!panelOpen) return
     setTab('messages')
@@ -37,6 +46,7 @@ export default function UserPanel() {
     getNotifications().then((d) => {
       if (d) setNotifications(d.list || [])
     })
+    getFavorites().then((d) => setFavorites(d || []))
     const onKey = (e) => {
       if (e.key === 'Escape') closePanel()
     }
@@ -44,7 +54,7 @@ export default function UserPanel() {
     return () => window.removeEventListener('keydown', onKey)
   }, [panelOpen, closePanel])
 
-  // 点击通知：未读先标记已读（本地即时 + 刷新角标），关闭面板并跳到对应文章
+  // 点击通知：未读先标记已读（本地即时 + 刷新角标），按类型跳转对应文章或仅关闭
   async function handleItemClick(n) {
     if (!n.is_read) {
       await markNotificationRead(n.id)
@@ -54,7 +64,20 @@ export default function UserPanel() {
     }
     refreshUnread()
     closePanel()
-    navigate(`/posts/${n.post_slug}`)
+    if (n.post_slug) navigate(`/posts/${n.post_slug}`)
+  }
+
+  // 通知文案：按类型（reply / mention / system）渲染
+  function notifText(n) {
+    if (n.kind === 'mention') return `在《${n.post_title}》的评论中提到了你`
+    if (n.kind === 'system') return '系统公告'
+    return `回复了你在《${n.post_title}》的评论`
+  }
+
+  // 点击收藏项：跳转对应文章
+  function handleFavoriteClick(f) {
+    closePanel()
+    navigate(`/posts/${f.slug}`)
   }
 
   // 全部已读：本地全部置为已读 + 刷新角标
@@ -140,6 +163,13 @@ export default function UserPanel() {
           </button>
           <button
             type="button"
+            className={`auth-modal-tab${tab === 'favorites' ? ' is-active' : ''}`}
+            onClick={() => setTab('favorites')}
+          >
+            收藏
+          </button>
+          <button
+            type="button"
             className={`auth-modal-tab${tab === 'profile' ? ' is-active' : ''}`}
             onClick={() => setTab('profile')}
           >
@@ -169,10 +199,39 @@ export default function UserPanel() {
                     >
                       <span className="user-panel-msg-main">
                         <span className="user-panel-msg-actor mono">@{n.actor}</span>
-                        回复了你在《{n.post_title}》的评论
+                        {notifText(n)}
                       </span>
-                      <span className="user-panel-msg-preview mono">{n.comment_preview}</span>
+                      <span className="user-panel-msg-preview mono">{n.comment_preview || n.content}</span>
                       <span className="user-panel-msg-time mono">{formatTime(n.created_at)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {tab === 'favorites' && (
+          <div className="user-panel-section">
+            <div className="user-panel-section-head">
+              <span className="user-panel-section-title mono">favorites</span>
+              <span className="user-panel-read-all mono">{favorites.length} 篇</span>
+            </div>
+            {favorites.length === 0 ? (
+              <p className="user-panel-empty">还没有收藏的文章</p>
+            ) : (
+              <ul className="user-panel-msg-list">
+                {favorites.map((f) => (
+                  <li key={f.slug}>
+                    <button
+                      type="button"
+                      className="user-panel-msg"
+                      onClick={() => handleFavoriteClick(f)}
+                    >
+                      <span className="user-panel-msg-main">
+                        <span className="user-panel-msg-preview">★ {f.title}</span>
+                      </span>
+                      <span className="user-panel-msg-time mono">{f.date}</span>
                     </button>
                   </li>
                 ))}

@@ -64,15 +64,24 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
-    """评论序列化：只暴露作者名，附带父评论与归属判断。"""
+    """评论序列化：作者名/头像，附带父评论、归属、点赞与审核状态。"""
     author = serializers.CharField(source="author.username", read_only=True)
     author_id = serializers.IntegerField(source="author.id", read_only=True)
+    avatar = SerializerMethodField()
     parent = serializers.IntegerField(source="parent_id", read_only=True, allow_null=True)
     is_mine = serializers.SerializerMethodField()
+    liked = SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ["id", "parent", "author", "author_id", "content", "created_at", "is_mine"]
+        fields = [
+            "id", "parent", "author", "author_id", "avatar", "content", "created_at",
+            "is_mine", "likes", "liked", "is_approved",
+        ]
+
+    def get_avatar(self, obj):
+        profile = getattr(obj.author, "profile", None)
+        return profile.avatar.url if profile and profile.avatar else None
 
     def get_is_mine(self, obj):
         """当前登录用户是否为该评论作者。"""
@@ -82,21 +91,36 @@ class CommentSerializer(serializers.ModelSerializer):
             return False
         return obj.author_id == user.id
 
+    def get_liked(self, obj):
+        """当前登录用户是否赞过该评论（未登录恒为 False）。"""
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        return obj.liked_records.filter(user_id=user.id).exists()
+
 
 class NotificationSerializer(serializers.ModelSerializer):
-    """站内通知序列化：附被回复评论所在文章与预览。"""
+    """站内通知：reply/mention 关联评论与文章；system 公告正文存 content（comment 为空）。"""
     actor = serializers.CharField(source="actor.username", read_only=True)
-    post_slug = serializers.CharField(source="comment.post.slug", read_only=True)
-    post_title = serializers.CharField(source="comment.post.title", read_only=True)
+    post_slug = serializers.SerializerMethodField()
+    post_title = serializers.SerializerMethodField()
     comment_preview = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
-        fields = ["id", "kind", "actor", "post_slug", "post_title", "comment_preview", "is_read", "created_at"]
+        fields = ["id", "kind", "actor", "post_slug", "post_title", "comment_preview", "content", "is_read", "created_at"]
+
+    def get_post_slug(self, obj):
+        return obj.comment.post.slug if obj.comment else None
+
+    def get_post_title(self, obj):
+        return obj.comment.post.title if obj.comment else None
 
     def get_comment_preview(self, obj):
-        """评论内容前 80 个字符作为预览。"""
-        return obj.comment.content[:80]
+        """评论内容前 80 字符（系统公告取 content 前 80 字符）。"""
+        text = obj.comment.content if obj.comment else obj.content
+        return text[:80]
 
 
 # 对外 id 使用 slug（沿用原 md 的 id，前端字段不变）
@@ -106,10 +130,12 @@ class PostListSerializer(serializers.ModelSerializer):
     comment_count = serializers.IntegerField(read_only=True)
     # 当前登录用户是否已赞（未登录恒为 False）
     liked = SerializerMethodField()
+    # 当前登录用户是否已收藏（未登录恒为 False）
+    favorited = SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ["id", "slug", "title", "date", "tags", "excerpt", "views", "likes", "comment_count", "liked"]
+        fields = ["id", "slug", "title", "date", "tags", "excerpt", "views", "likes", "comment_count", "liked", "favorited"]
 
     def get_liked(self, obj):
         request = self.context.get("request")
@@ -118,13 +144,20 @@ class PostListSerializer(serializers.ModelSerializer):
             return False
         return obj.liked_by.filter(id=user.id).exists()
 
+    def get_favorited(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        return obj.favorites.filter(user_id=user.id).exists()
+
 
 class PostDetailSerializer(PostListSerializer):
     # 帖子附件列表（图片/视频/普通文件），供前台展示与下载
     attachments = AttachmentSerializer(many=True, read_only=True)
 
     class Meta(PostListSerializer.Meta):
-        fields = ["id", "slug", "title", "date", "tags", "excerpt", "content", "views", "likes", "comment_count", "liked", "attachments"]
+        fields = ["id", "slug", "title", "date", "tags", "excerpt", "content", "views", "likes", "comment_count", "liked", "favorited", "attachments"]
 
 
 class ProjectSerializer(serializers.ModelSerializer):

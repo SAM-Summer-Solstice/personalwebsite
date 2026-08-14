@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { usePosts, usePost, notifyContentReady } from '../../data/useContent.js'
-import { incrementViews, toggleLike } from '../../api.js'
+import { incrementViews, toggleLike, toggleFavorite } from '../../api.js'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import MarkdownBody from '../MarkdownBody.jsx'
 import CommentSection from '../CommentSection.jsx'
@@ -39,6 +39,7 @@ function PostMeta({ post, viewsOverride, commentCountOverride, onOpen }) {
   const { user, openAuth } = useAuth()
   const [likes, setLikes] = useState(post.likes)
   const [liked, setLiked] = useState(Boolean(post.liked))
+  const [favorited, setFavorited] = useState(Boolean(post.favorited))
 
   async function handleLike() {
     if (!user) {
@@ -49,6 +50,17 @@ function PostMeta({ post, viewsOverride, commentCountOverride, onOpen }) {
     if (data && typeof data.likes === 'number') {
       setLikes(data.likes)
       setLiked(Boolean(data.liked))
+    }
+  }
+
+  async function handleFavorite() {
+    if (!user) {
+      openAuth()
+      return
+    }
+    const data = await toggleFavorite(post.id)
+    if (data && typeof data.favorited === 'boolean') {
+      setFavorited(data.favorited)
     }
   }
 
@@ -73,6 +85,15 @@ function PostMeta({ post, viewsOverride, commentCountOverride, onOpen }) {
         onClick={handleLike}
       >
         赞 {likes}
+      </button>
+      <button
+        type="button"
+        className={`post-meta-like${favorited ? ' is-liked' : ''}`}
+        aria-pressed={favorited}
+        title={favorited ? '取消收藏' : '收藏'}
+        onClick={handleFavorite}
+      >
+        {favorited ? '★ 已收藏' : '☆ 收藏'}
       </button>
     </div>
   )

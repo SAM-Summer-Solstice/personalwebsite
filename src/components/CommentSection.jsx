@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext.jsx'
-import { getComments, addCommentDetailed, deleteComment } from '../api.js'
+import {
+  getComments,
+  addCommentDetailed,
+  deleteComment,
+  toggleCommentLike,
+  reportComment,
+  resolveMediaUrl,
+} from '../api.js'
 
 // 评论时间格式化：YYYY-MM-DD HH:mm（mono 风格展示）
 function formatTime(iso) {
@@ -45,6 +52,8 @@ export default function CommentSection({ postId, onCountChange }) {
   const [replying, setReplying] = useState(false)
   // 发表/回复被拒时的服务端提示（禁言 / 限频文案）
   const [submitError, setSubmitError] = useState('')
+  // 中性提示（举报成功、评论待审核等）
+  const [notice, setNotice] = useState('')
   // 已展开回复的评论 id 集合：默认每条评论只展示第一条回复，点击小三角展开其余
   const [expanded, setExpanded] = useState(() => new Set())
 
@@ -75,13 +84,15 @@ export default function CommentSection({ postId, onCountChange }) {
     }
   }, [user])
 
-  // 发表顶层评论：成功后清空输入框并追加到列表尾部；被拒（禁言/限频）展示服务端提示
+  // 发表顶层评论：成功后清空输入框并追加到列表尾部；被拒（禁言/限频）展示服务端提示；
+  // 进审核队列（is_approved=false）的评论同样本地展示，但带「审核中」标记并给出提示
   async function handleSubmit(e) {
     e.preventDefault()
     const text = content.trim()
     if (!text || submitting) return
     setSubmitting(true)
     setSubmitError('')
+    setNotice('')
     const res = await addCommentDetailed(postId, text)
     setSubmitting(false)
     if (res?.ok && res.data) {
@@ -89,6 +100,7 @@ export default function CommentSection({ postId, onCountChange }) {
       setComments(next)
       setContent('')
       onCountChange?.(next.length)
+      if (!res.data.is_approved) setNotice('评论已提交，审核通过后展示')
     } else {
       setSubmitError(res?.detail || '发表失败，请稍后再试')
     }
@@ -116,6 +128,7 @@ export default function CommentSection({ postId, onCountChange }) {
     if (!text || replying) return
     setReplying(true)
     setSubmitError('')
+    setNotice('')
     const res = await addCommentDetailed(postId, text, parent.id)
     setReplying(false)
     if (res?.ok && res.data) {
@@ -124,8 +137,43 @@ export default function CommentSection({ postId, onCountChange }) {
       setReplyTarget(null)
       setReplyText('')
       onCountChange?.(next.length)
+      if (!res.data.is_approved) setNotice('回复已提交，审核通过后展示')
     } else {
       setSubmitError(res?.detail || '回复失败，请稍后再试')
+    }
+  }
+
+  // 点赞/取消点赞评论（未登录先弹登录窗），成功后同步服务端结果
+  async function handleLikeComment(c) {
+    if (!user) {
+      openAuth()
+      return
+    }
+    const data = await toggleCommentLike(c.id)
+    if (data && typeof data.likes === 'number') {
+      setComments((list) =>
+        list.map((x) => (x.id === c.id ? { ...x, likes: data.likes, liked: data.liked } : x))
+      )
+    }
+  }
+
+  // 举报评论（未登录先弹登录窗）：首个举报成功后该评论自动隐藏待复核，本地同步移除
+  async function handleReport(c) {
+    if (!user) {
+      openAuth()
+      return
+    }
+    const reason = window.prompt('举报理由（可选）')
+    if (reason === null) return
+    const res = await reportComment(c.id, reason || '')
+    if (res?.ok) {
+      const ids = collectIds(c, comments)
+      const next = comments.filter((x) => !ids.includes(x.id))
+      setComments(next)
+      onCountChange?.(next.length)
+      setNotice('已举报，评论已隐藏，等待管理员复核')
+    } else {
+      setSubmitError(res?.detail || '举报失败，请稍后再试')
     }
   }
 
@@ -158,7 +206,15 @@ export default function CommentSection({ postId, onCountChange }) {
     return (
       <li key={c.id} id={`comment-${c.id}`} className="blog-comment">
         <div className="blog-comment-head">
+          {c.avatar ? (
+            <img className="blog-comment-avatar" src={resolveMediaUrl(c.avatar)} alt={c.author} />
+          ) : (
+            <span className="blog-comment-avatar is-fallback mono" aria-hidden="true">
+              {(c.author || '').slice(0, 1).toUpperCase()}
+            </span>
+          )}
           <span className="blog-comment-author">{c.author}</span>
+          {c.is_approved === false && <span className="blog-comment-pending mono">审核中</span>}
           <span className="blog-comment-time mono">{formatTime(c.created_at)}</span>
         </div>
         <p className="blog-comment-content">{c.content}</p>
@@ -167,6 +223,19 @@ export default function CommentSection({ postId, onCountChange }) {
           <button type="button" className="blog-comment-action-btn" onClick={() => toggleReply(c)}>
             回复
           </button>
+          <button
+            type="button"
+            className={`blog-comment-action-btn${c.liked ? ' is-liked' : ''}`}
+            aria-pressed={Boolean(c.liked)}
+            onClick={() => handleLikeComment(c)}
+          >
+            ♥ {c.likes || 0}
+          </button>
+          {!c.is_mine && (
+            <button type="button" className="blog-comment-action-btn" onClick={() => handleReport(c)}>
+              举报
+            </button>
+          )}
           {(c.is_mine || user?.is_staff) && (
             <button
               type="button"
@@ -242,9 +311,10 @@ export default function CommentSection({ postId, onCountChange }) {
       {user ? (
         <form className="blog-comment-form" onSubmit={handleSubmit}>
           {submitError && <p className="blog-comment-error">{submitError}</p>}
+          {notice && <p className="blog-comment-notice">{notice}</p>}
           <textarea
             className="blog-comment-input"
-            placeholder="写下你的评论…"
+            placeholder="写下你的评论…（回复可用 @用户名 提及对方）"
             value={content}
             onChange={(e) => {
               setContent(e.target.value)

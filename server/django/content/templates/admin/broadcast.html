@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main" style="max-width: 640px; margin: 24px auto;">
+  <h1 style="font-size: 20px; margin-bottom: 8px;">发送系统公告</h1>
+  <p style="color: #888; margin-bottom: 20px;">公告将作为一条站内通知（kind=system）发送给全部启用账号，用户在其「消息」面板中查看。</p>
+  <form method="post" action="">
+    {% csrf_token %}
+    <div>
+      <textarea name="content" rows="5" required
+        style="width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #c4c4c4; border-radius: 4px; font: inherit;"
+        placeholder="输入公告内容…"></textarea>
+    </div>
+    <div style="margin-top: 16px;">
+      <button type="submit" class="button" style="cursor: pointer;">发送公告</button>
+      <a href="../" class="button" style="margin-left: 8px;">返回列表</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -56,13 +56,14 @@ class Attachment(models.Model):
 
 
 class Comment(models.Model):
-    """帖子评论：登录用户发表，默认直接显示，后台可审核。"""
+    """帖子评论：登录用户发表，默认直接显示，敏感词/新账号命中进入审核队列，后台可审核。"""
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="comments_set")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies", verbose_name="上级评论")
     content = models.TextField("内容")
     created_at = models.DateTimeField(auto_now_add=True)
     is_approved = models.BooleanField("已审核", default=True)
+    likes = models.PositiveIntegerField("点赞数", default=0)
 
     class Meta:
         ordering = ["created_at"]
@@ -71,12 +72,68 @@ class Comment(models.Model):
         return f"{self.author.username}: {self.content[:20]}"
 
 
+class CommentLike(models.Model):
+    """评论点赞记录（likes 数值以真实记录数为准）。"""
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="liked_records")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comment_likes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["comment", "user"], name="uniq_comment_like")]
+
+    def __str__(self):
+        return f"{self.user_id} -> comment {self.comment_id}"
+
+
+class SensitiveWord(models.Model):
+    """敏感词库：命中（子串匹配，英文忽略大小写）的评论进入审核队列。"""
+    word = models.CharField("词", max_length=50, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["word"]
+
+    def __str__(self):
+        return self.word
+
+
+class Report(models.Model):
+    """评论举报：首个举报自动隐藏评论（待复核），后台处理（通过恢复 / 驳回删除）。"""
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="reports")
+    reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reports")
+    reason = models.CharField("理由", max_length=200, blank=True)
+    status = models.CharField("状态", max_length=10, default="pending")  # pending / handled
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["comment", "reporter"], name="uniq_report")]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.reporter} 举报评论 {self.comment_id}"
+
+
+class Favorite(models.Model):
+    """文章收藏（登录用户）。"""
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="favorites")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorites")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["post", "user"], name="uniq_favorite")]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.username} ★ {self.post.slug}"
+
+
 class Notification(models.Model):
-    """站内通知：回复评论时通知被回复者（另有邮件兜底）。"""
+    """站内通知：回复 / @提及（关联评论）；系统公告（comment 为空，正文存 content）。"""
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notified_actors")
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="notifications")
-    kind = models.CharField("类型", max_length=20, default="reply")
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, null=True, blank=True, related_name="notifications")
+    kind = models.CharField("类型", max_length=20, default="reply")  # reply / mention / system
+    content = models.TextField("通知正文（系统公告用）", blank=True, default="")
     is_read = models.BooleanField("已读", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -84,7 +141,7 @@ class Notification(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.actor} -> {self.recipient}: {self.comment_id}"
+        return f"{self.actor} -> {self.recipient}: {self.kind}"
 
 
 class PasswordResetCode(models.Model):

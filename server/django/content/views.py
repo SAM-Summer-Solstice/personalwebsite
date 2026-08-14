@@ -2,6 +2,7 @@ import hashlib
 import io
 import logging
 import os
+import re
 import secrets
 from datetime import timedelta
 from pathlib import Path
@@ -23,7 +24,21 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile, RateLimitHit
+from .models import (
+    Post,
+    Project,
+    About,
+    Attachment,
+    Comment,
+    CommentLike,
+    Favorite,
+    Notification,
+    PasswordResetCode,
+    RateLimitHit,
+    Report,
+    SensitiveWord,
+    UserProfile,
+)
 from .serializers import (
     PostListSerializer,
     PostDetailSerializer,
@@ -58,10 +73,17 @@ RATE_LIMITS = {
     "login_fail": (20, 15 * 60),      # 每 IP 15 分钟内最多失败 20 次（防爆破；局域网共享出口 IP，阈值放宽避免误伤）
     "reset_request": (3, 3600),       # 每 IP 每小时最多请求 3 次验证码
     "comment_ip": (60, 24 * 3600),    # 每 IP 每天最多 60 条评论（正常用户远达不到）
+    "report": (5, 3600),              # 每 IP 每小时最多举报 5 次
 }
 # 单用户维度：评论最小间隔与每日上限
 COMMENT_MIN_INTERVAL = timedelta(seconds=10)
 COMMENT_USER_DAILY_MAX = 30
+
+# 新注册账号评论审核窗口：注册 24 小时内的评论默认进审核队列（防广告号）
+NEW_ACCOUNT_AUDIT_WINDOW = timedelta(hours=24)
+
+# @提及用户名匹配：字母数字下划线或常见中文昵称，1-20 字符
+MENTION_RE = re.compile(r"@([\w\u4e00-\u9fa5]{1,20})")
 
 
 def _client_ip(request):
@@ -95,6 +117,22 @@ def _muted_message(user):
         local = timezone.localtime(profile.muted_until)
         return f"你已被禁言，解禁时间：{local:%Y-%m-%d %H:%M}"
     return None
+
+
+def _contains_sensitive(text):
+    """评论是否命中敏感词库（子串匹配，英文忽略大小写；词库较小，直接遍历）。"""
+    lowered = text.lower()
+    return SensitiveWord.objects.filter().exists() and any(
+        w.word.lower() in lowered for w in SensitiveWord.objects.all()
+    )
+
+
+def _extract_mentions(text):
+    """提取 @用户名 提及（排除重复与自身，只保留真实存在的用户）。"""
+    names = set(MENTION_RE.findall(text))
+    if not names:
+        return []
+    return list(User.objects.filter(username__in=names))
 
 
 def _avatar_url(user):
@@ -405,12 +443,21 @@ def comments(request, pk):
         parent = Comment.objects.filter(id=parent_id, post=post).first()
         if parent is None:
             return Response({"detail": "回复的目标评论不存在"}, status=400)
-    c = Comment.objects.create(post=post, author=request.user, content=content, parent=parent)
+    # 审核策略：敏感词命中或新注册账号（24h 内）→ 进审核队列（is_approved=False）；其余直发
+    approved = not _contains_sensitive(content) and request.user.date_joined < timezone.now() - NEW_ACCOUNT_AUDIT_WINDOW
+    c = Comment.objects.create(post=post, author=request.user, content=content, parent=parent, is_approved=approved)
     _record_hit(ip, "comment_ip")
-    # 站内通知 + 邮件：回复了别人的评论（Task 5）
-    if parent and parent.author_id != request.user.id:
-        Notification.objects.create(recipient=parent.author, actor=request.user, comment=c, kind="reply")
-        _send_reply_email(request, c, parent)
+    if approved:
+        # 站内通知 + 邮件：回复了别人的评论
+        if parent and parent.author_id != request.user.id:
+            Notification.objects.create(recipient=parent.author, actor=request.user, comment=c, kind="reply")
+            _send_reply_email(request, c, parent)
+        # @提及通知：@用户名 的用户收到 mention 通知（排除自己与已通知的回复对象）
+        notified = {parent.author_id} if parent else set()
+        for mentioned in _extract_mentions(content):
+            if mentioned.id != request.user.id and mentioned.id not in notified:
+                Notification.objects.create(recipient=mentioned, actor=request.user, comment=c, kind="mention")
+                notified.add(mentioned.id)
     return Response(CommentSerializer(c, context={"request": request}).data, status=201)
 
 
@@ -426,6 +473,87 @@ def comment_detail(request, pk):
         return Response({"detail": "无权删除该评论"}, status=403)
     c.delete()
     return Response(status=204)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def report_comment(request, pk):
+    """举报评论：首个举报自动隐藏该评论（待管理员复核），每人每评论限举报一次；按 IP 限频。"""
+    c = Comment.objects.filter(id=pk, is_approved=True).first()
+    if c is None:
+        return Response({"detail": "Not found."}, status=404)
+    if c.author_id == request.user.id:
+        return Response({"detail": "不能举报自己的评论"}, status=400)
+    ip = _client_ip(request)
+    limit, window = RATE_LIMITS["report"]
+    if _rate_limited(ip, "report", limit, window):
+        return Response({"detail": "举报过于频繁，请稍后再试"}, status=429)
+    reason = (request.data.get("reason") or "").strip()[:200]
+    if Report.objects.filter(comment=c, reporter=request.user).exists():
+        return Response({"detail": "你已经举报过这条评论"}, status=400)
+    Report.objects.create(comment=c, reporter=request.user, reason=reason)
+    # 自动隐藏待复核：被举报评论立即从公共列表消失（后台可恢复或删除）
+    c.is_approved = False
+    c.save(update_fields=["is_approved"])
+    _record_hit(ip, "report")
+    return Response({"detail": "已举报，评论已隐藏，等待管理员复核"})
+
+
+@api_view(["POST"])
+def toggle_comment_like(request, pk):
+    """切换评论点赞：已赞则取消，未赞则点赞（被禁言用户也可点赞，禁言仅限发言）。"""
+    c = Comment.objects.filter(id=pk, is_approved=True).first()
+    if c is None:
+        return Response({"detail": "Not found."}, status=404)
+    if not request.user.is_authenticated:
+        return Response({"detail": "请先登录"}, status=401)
+    record = CommentLike.objects.filter(comment=c, user=request.user).first()
+    if record:
+        record.delete()
+        c.likes = max(0, (c.likes or 0) - 1)
+        liked = False
+    else:
+        CommentLike.objects.create(comment=c, user=request.user)
+        c.likes = (c.likes or 0) + 1
+        liked = True
+    c.save(update_fields=["likes"])
+    return Response({"likes": c.likes, "liked": liked})
+
+
+@api_view(["POST"])
+def toggle_favorite(request, pk):
+    """切换文章收藏：已收藏则取消，未收藏则收藏。"""
+    post = Post.objects.filter(slug=pk).first()
+    if post is None:
+        return Response({"detail": "Not found."}, status=404)
+    if not request.user.is_authenticated:
+        return Response({"detail": "请先登录"}, status=401)
+    fav = Favorite.objects.filter(post=post, user=request.user).first()
+    if fav:
+        fav.delete()
+        favorited = False
+    else:
+        Favorite.objects.create(post=post, user=request.user)
+        favorited = True
+    return Response({"favorited": favorited})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def favorites_list(request):
+    """当前用户的收藏列表（含文章信息，供个人面板展示）。"""
+    qs = request.user.favorites.select_related("post").all()
+    return Response(
+        [
+            {
+                "slug": f.post.slug,
+                "title": f.post.title,
+                "date": f.post.date,
+                "created_at": f.created_at,
+            }
+            for f in qs
+        ]
+    )
 
 
 def _send_reply_email(request, reply, parent):

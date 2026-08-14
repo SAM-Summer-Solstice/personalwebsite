@@ -4,7 +4,21 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.html import mark_safe
 from markdownx.admin import MarkdownxModelAdmin
-from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile, RateLimitHit
+from .models import (
+    Post,
+    Project,
+    About,
+    Attachment,
+    Comment,
+    CommentLike,
+    Favorite,
+    Notification,
+    PasswordResetCode,
+    RateLimitHit,
+    Report,
+    SensitiveWord,
+    UserProfile,
+)
 
 
 class AttachmentInline(admin.TabularInline):
@@ -24,9 +38,10 @@ class PostAdmin(MarkdownxModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    """评论管理：支持批量审核通过/驳回。"""
-    list_display = ("post", "author", "parent", "created_at", "is_approved")
+    """评论管理：支持批量审核通过/驳回（含敏感词/举报进入队列的待审评论）。"""
+    list_display = ("post", "author", "parent", "likes", "created_at", "is_approved")
     list_filter = ("is_approved",)
+    search_fields = ("content", "author__username")
     actions = ["approve_comments", "reject_comments"]
 
     @admin.action(description="通过选中评论")
@@ -40,11 +55,85 @@ class CommentAdmin(admin.ModelAdmin):
         queryset.update(is_approved=False)
 
 
+@admin.register(SensitiveWord)
+class SensitiveWordAdmin(admin.ModelAdmin):
+    """敏感词库：命中的新评论自动进入审核队列。"""
+    list_display = ("word", "created_at")
+    search_fields = ("word",)
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    """举报处理队列：通过=恢复评论；驳回=删除评论并标记已处理。"""
+    list_display = ("comment_short", "reporter", "reason", "status", "created_at")
+    list_filter = ("status",)
+    actions = ["approve_report", "reject_report"]
+
+    def comment_short(self, obj):
+        return obj.comment.content[:30]
+
+    comment_short.short_description = "被举报评论"
+
+    @admin.action(description="通过：恢复评论")
+    def approve_report(self, request, queryset):
+        for r in queryset:
+            Comment.objects.filter(id=r.comment_id).update(is_approved=True)
+        queryset.update(status="handled")
+
+    @admin.action(description="驳回：删除评论")
+    def reject_report(self, request, queryset):
+        for r in queryset:
+            Comment.objects.filter(id=r.comment_id).delete()
+        queryset.update(status="handled")
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = ("user", "post", "created_at")
+    list_filter = ("created_at",)
+
+
+@admin.register(CommentLike)
+class CommentLikeAdmin(admin.ModelAdmin):
+    list_display = ("user", "comment", "created_at")
+
+
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    """站内通知管理。"""
-    list_display = ("recipient", "actor", "comment", "is_read", "created_at")
-    list_filter = ("is_read",)
+    """站内通知管理（含发送系统公告入口）。"""
+    list_display = ("recipient", "actor", "kind", "comment", "is_read", "created_at")
+    list_filter = ("is_read", "kind")
+
+    def get_urls(self):
+        from django.urls import path
+
+        urls = super().get_urls()
+        custom = [
+            path(
+                "broadcast/",
+                self.admin_site.admin_view(self.broadcast_view),
+                name="notification_broadcast",
+            )
+        ]
+        return custom + urls
+
+    def broadcast_view(self, request):
+        """发送系统公告：给所有启用账号各建一条 kind=system 通知（正文存 content）。"""
+        from django.shortcuts import redirect, render
+
+        if request.method == "POST":
+            text = (request.POST.get("content") or "").strip()
+            if text:
+                recipients = User.objects.filter(is_active=True)
+                Notification.objects.bulk_create(
+                    [
+                        Notification(recipient=u, actor=request.user, kind="system", content=text)
+                        for u in recipients
+                    ]
+                )
+                self.message_user(request, f"公告已发送给 {len(recipients)} 位用户")
+            return redirect("admin:content_notification_changelist")
+        return render(request, "admin/broadcast.html", {"title": "发送系统公告"})
 
 
 @admin.register(PasswordResetCode)

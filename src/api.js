@@ -237,3 +237,26 @@ export function deleteComment(id) {
 export function toggleLike(postId) {
   return request(`/posts/${postId}/like/`, { method: 'POST' })
 }
+
+// 切换评论点赞（需登录；返回 {likes, liked}）
+export function toggleCommentLike(commentId) {
+  return request(`/comments/${commentId}/like/`, { method: 'POST' })
+}
+
+// 举报评论（需登录；带详情版返回 { ok, detail }，成功后评论自动隐藏待复核）
+export function reportComment(commentId, reason) {
+  return requestDetailed(`/comments/${commentId}/report/`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason || '' }),
+  })
+}
+
+// 切换文章收藏（需登录；返回 {favorited}）
+export function toggleFavorite(postId) {
+  return request(`/posts/${postId}/favorite/`, { method: 'POST' })
+}
+
+// 我的收藏列表（需登录；返回 [{slug,title,date,created_at}]）
+export function getFavorites() {
+  return request('/favorites/')
+}

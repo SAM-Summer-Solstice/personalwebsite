@@ -7,6 +7,7 @@ import EasterEggs from './components/EasterEggs.jsx'
 import Dither from './components/Dither.jsx'
 import AuthModal from './components/AuthModal.jsx'
 import UserPanel from './components/UserPanel.jsx'
+import UserProfileModal from './components/UserProfileModal.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
 import { startPreload } from './preload.js'
 import { usePosts, useProjects, useAbout } from './data/useContent.js'
@@ -147,6 +148,8 @@ function AppShell() {
       <AuthModal />
       {/* 用户面板（通知 / 资料）：全局单例，由 AuthContext 的 panelOpen 控制显隐，需在 Router 内以使用 useNavigate */}
       <UserPanel />
+      {/* 用户主页弹窗：全局单例，用户墙点击（user:view 事件）打开 */}
+      <UserProfileModal />
     </>
   )
 }

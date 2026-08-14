@@ -1,6 +1,7 @@
 import { useLayoutEffect } from 'react'
 import { useAbout, usePosts, useProjects, useUsers, notifyContentReady } from '../../data/useContent.js'
 import { resolveMediaUrl } from '../../api.js'
+import { USER_VIEW_EVENT } from '../UserProfileModal.jsx'
 import './HomeSection.css'
 
 export default function HomeSection({ onNavigate }) {
@@ -41,7 +42,15 @@ export default function HomeSection({ onNavigate }) {
         <h3 className="home-section-title mono home-title-accent" data-reveal-title>用户墙</h3>
         <div className="home-users" data-stagger>
           {users.map((u) => (
-            <div key={u.username} className="home-user" title={u.username}>
+            <button
+              key={u.username}
+              type="button"
+              className="home-user"
+              title={`查看 @${u.username} 的主页`}
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent(USER_VIEW_EVENT, { detail: { username: u.username } }))
+              }
+            >
               {u.avatar ? (
                 <img
                   className="home-user-avatar"
@@ -57,7 +66,7 @@ export default function HomeSection({ onNavigate }) {
               {/* hover 才显示用户名与评论数，默认保持纯头像墙 */}
               <span className="home-user-name">{u.username}</span>
               <span className="home-user-comments mono">{u.comment_count} 条评论</span>
-            </div>
+            </button>
           ))}
           {!users.length && <p className="home-users-empty">还没有注册用户，来抢第一个吧</p>}
         </div>

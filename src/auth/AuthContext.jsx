@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { login as apiLogin, register as apiRegister, getMe, getNotifications, setToken, getToken, UNAUTHORIZED_EVENT } from '../api.js'
+import { loginDetailed, registerDetailed, getMe, getNotifications, setToken, getToken, UNAUTHORIZED_EVENT } from '../api.js'
 
 // 登录态上下文：user（当前用户，未登录为 null）/ ready（初次 token 校验完成）/
 // authOpen（登录弹窗开关）/ unread（未读通知数）/ panelOpen（用户面板开关）+
@@ -57,21 +57,34 @@ export function AuthProvider({ children }) {
     if (me) setUser(me)
   }, [])
 
-  // 登录：拿到 access token 后保存并拉取用户信息，同步未读数
+  // 登录：拿到 access token 后保存并拉取用户信息，同步未读数；失败时透传服务端提示（限频/账号错误等）
   const login = useCallback(async (username, password) => {
-    const data = await apiLogin({ username, password })
-    if (!data || !data.access) return { ok: false, detail: '登录失败，请检查账号密码' }
-    setToken(data.access)
+    const res = await loginDetailed({ username, password })
+    if (!res?.ok || !res.data?.access) {
+      const detail = res?.detail || ''
+      // 401 = 凭据错误（simplejwt 中英文文案 / 封禁账号统一映射）；429 限频文案原样透传
+      const mapped =
+        res.status === 401 ||
+        detail.includes('No active account') ||
+        detail.includes('找不到指定凭据') ||
+        detail.includes('token_not_valid')
+          ? '账号或密码错误'
+          : detail
+      return { ok: false, detail: mapped || '登录失败，请检查账号密码' }
+    }
+    setToken(res.data.access)
     const me = await getMe()
     setUser(me || { username })
     refreshUnread()
     return { ok: true }
   }, [refreshUnread])
 
-  // 注册：先建号，成功后直接走登录流程
+  // 注册：先建号，成功后直接走登录流程；失败透传服务端提示（限频/用户名已存在等）
   const register = useCallback(async (username, password, email) => {
-    const r = await apiRegister({ username, password, email })
-    if (!r) return { ok: false, detail: '注册失败（用户名可能已存在或网络异常）' }
+    const r = await registerDetailed({ username, password, email })
+    if (!r?.ok) {
+      return { ok: false, detail: r?.detail || '注册失败（用户名可能已存在或网络异常）' }
+    }
     return login(username, password)
   }, [login])
 

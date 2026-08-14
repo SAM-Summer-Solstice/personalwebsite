@@ -1,9 +1,10 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
+from django.utils import timezone
 from django.utils.html import mark_safe
 from markdownx.admin import MarkdownxModelAdmin
-from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile
+from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile, RateLimitHit
 
 
 class AttachmentInline(admin.TabularInline):
@@ -81,10 +82,10 @@ _avatar_preview.short_description = "头像预览"
 
 
 class UserProfileInline(admin.TabularInline):
-    """用户编辑页内联头像（后台可查看/编辑每个用户的资料）。"""
+    """用户编辑页内联头像/签名（后台可查看/编辑每个用户的资料）。"""
     model = UserProfile
     extra = 0
-    fields = ("avatar_preview", "avatar")
+    fields = ("avatar_preview", "avatar", "bio", "muted_until", "is_muted_forever")
     readonly_fields = ("avatar_preview",)
     avatar_preview = _avatar_preview  # 模块级函数挂到类上，admin 才能识别
 
@@ -95,10 +96,94 @@ admin.site.unregister(User)
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     inlines = [UserProfileInline]
+    list_display = ("username", "email", "mute_status", "is_active", "is_staff", "date_joined", "last_login")
+    list_filter = ("is_active", "is_staff")
+    actions = ["mute_1h", "mute_24h", "mute_7d", "mute_forever", "unmute", "ban", "unban"]
+
+    def mute_status(self, obj):
+        """禁言状态徽标：永久 / 限时（含截止时间）/ 正常。"""
+        profile = getattr(obj, "profile", None)
+        if not profile or not profile.is_muted:
+            return "正常"
+        if profile.is_muted_forever:
+            return mark_safe('<span style="color:#d33">永久禁言</span>')
+        local = timezone.localtime(profile.muted_until)
+        return mark_safe(f'<span style="color:#d93">禁言至 {local:%m-%d %H:%M}</span>')
+
+    mute_status.short_description = "禁言状态"
+
+    def _mute(self, request, queryset, until):
+        from datetime import timedelta
+
+        for user in queryset:
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            if until is None:
+                profile.is_muted_forever = True
+                profile.muted_until = None
+            else:
+                profile.is_muted_forever = False
+                profile.muted_until = timezone.now() + timedelta(seconds=until)
+            profile.save(update_fields=["is_muted_forever", "muted_until"])
+
+    @admin.action(description="禁言 1 小时")
+    def mute_1h(self, request, queryset):
+        self._mute(request, queryset, 3600)
+
+    @admin.action(description="禁言 24 小时")
+    def mute_24h(self, request, queryset):
+        self._mute(request, queryset, 86400)
+
+    @admin.action(description="禁言 7 天")
+    def mute_7d(self, request, queryset):
+        self._mute(request, queryset, 7 * 86400)
+
+    @admin.action(description="永久禁言")
+    def mute_forever(self, request, queryset):
+        self._mute(request, queryset, None)
+
+    @admin.action(description="解除禁言")
+    def unmute(self, request, queryset):
+        UserProfile.objects.filter(user__in=queryset).update(
+            is_muted_forever=False, muted_until=None
+        )
+
+    @admin.action(description="封禁（禁止登录，数据保留）")
+    def ban(self, request, queryset):
+        queryset.exclude(is_superuser=True).update(is_active=False)
+
+    @admin.action(description="解封")
+    def unban(self, request, queryset):
+        queryset.update(is_active=True)
+
+
+@admin.register(RateLimitHit)
+class RateLimitHitAdmin(admin.ModelAdmin):
+    """限频命中记录（只读排查用，可批量清理）。"""
+    list_display = ("ip", "action", "created_at")
+    list_filter = ("action",)
+    search_fields = ("ip",)
+    actions = ["clear_old"]
+
+    @admin.action(description="清理 48 小时前的记录")
+    def clear_old(self, request, queryset):
+        from datetime import timedelta
+
+        n, _ = RateLimitHit.objects.filter(created_at__lt=timezone.now() - timedelta(hours=48)).delete()
+        self.message_user(request, f"已清理 {n} 条过期记录")
 
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "avatar_preview")
+    list_display = ("user", "avatar_preview", "bio", "mute_until_display")
+    search_fields = ("user__username",)
     readonly_fields = ("avatar_preview",)
     avatar_preview = _avatar_preview
+
+    def mute_until_display(self, obj):
+        if obj.is_muted_forever:
+            return "永久禁言"
+        if obj.muted_until:
+            return timezone.localtime(obj.muted_until).strftime("%Y-%m-%d %H:%M")
+        return "—"
+
+    mute_until_display.short_description = "禁言至"

@@ -186,3 +186,21 @@ class UserStatsSerializer(serializers.ModelSerializer):
         """头像相对路径（/media/...），未上传返回 null（前端用首字母占位）。"""
         profile = getattr(obj, "profile", None)
         return profile.avatar.url if profile and profile.avatar else None
+
+
+class UserPublicSerializer(serializers.ModelSerializer):
+    """用户个人主页：资料字段（不含邮箱等隐私），禁言状态对所有人可见（评论展示用）。"""
+    joined = serializers.SerializerMethodField()
+    avatar = SerializerMethodField()
+    bio = serializers.CharField(source="profile.bio", read_only=True, default="")
+
+    class Meta:
+        model = User
+        fields = ["username", "joined", "avatar", "bio", "date_joined"]
+
+    def get_joined(self, obj):
+        return obj.date_joined.strftime("%Y-%m")
+
+    def get_avatar(self, obj):
+        profile = getattr(obj, "profile", None)
+        return profile.avatar.url if profile and profile.avatar else None

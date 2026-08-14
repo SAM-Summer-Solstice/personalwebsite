@@ -20,18 +20,20 @@ export default function UserPanel() {
   const [tab, setTab] = useState('messages') // 'messages' | 'profile'
   const [notifications, setNotifications] = useState([])
   const [email, setEmail] = useState('')
+  const [bio, setBio] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [avatarMsg, setAvatarMsg] = useState('')
   const avatarInputRef = useRef(null)
 
-  // 打开面板：重置到消息 tab、预填邮箱、拉取通知；ESC / 遮罩点击关闭
+  // 打开面板：重置到消息 tab、预填邮箱/签名、拉取通知；ESC / 遮罩点击关闭
   useEffect(() => {
     if (!panelOpen) return
     setTab('messages')
     setSaveMsg('')
     setAvatarMsg('')
     setEmail(user?.email || '')
+    setBio(user?.bio || '')
     getNotifications().then((d) => {
       if (d) setNotifications(d.list || [])
     })
@@ -85,20 +87,29 @@ export default function UserPanel() {
     }
   }
 
-  // 保存资料：更新邮箱成功后刷新用户信息并提示
+  // 保存资料：更新邮箱/签名成功后刷新用户信息并提示
   async function handleSave(e) {
     e.preventDefault()
     if (saving) return
     setSaving(true)
     setSaveMsg('')
-    const me = await updateMe({ email: email.trim() })
+    const me = await updateMe({ email: email.trim(), bio: bio.trim() })
     setSaving(false)
     if (me) {
       refreshUser()
       setSaveMsg('保存成功')
     } else {
-      setSaveMsg('保存失败，请检查邮箱格式')
+      setSaveMsg('保存失败，请检查邮箱格式或签名长度')
     }
+  }
+
+  // 禁言提示文案：muted_until 为 ISO 时间，格式化为可读形式
+  function mutedNotice() {
+    if (!user?.is_muted) return null
+    if (!user.muted_until) return '你已被永久禁言，无法发表评论'
+    const d = new Date(user.muted_until)
+    const p = (n) => String(n).padStart(2, '0')
+    return `你已被禁言，解禁时间：${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
   }
 
   if (!panelOpen) return null
@@ -172,6 +183,8 @@ export default function UserPanel() {
 
         {tab === 'profile' && (
           <div className="user-panel-section">
+            {mutedNotice() && <p className="user-panel-muted">{mutedNotice()}</p>}
+
             {/* 头像：预览 + 更换（≤2MB） */}
             <div className="user-panel-avatar-row">
               {user?.avatar ? (
@@ -224,6 +237,17 @@ export default function UserPanel() {
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   required
+                />
+              </label>
+              <label className="auth-field">
+                <span className="auth-field-label mono">bio</span>
+                <input
+                  className="auth-input mono"
+                  type="text"
+                  value={bio}
+                  maxLength={200}
+                  placeholder="一句话介绍自己（最长 200 字）"
+                  onChange={(e) => setBio(e.target.value)}
                 />
               </label>
               <button type="submit" className="auth-submit mono" disabled={saving}>

@@ -1,4 +1,5 @@
 import hashlib
+import io
 import logging
 import os
 import secrets
@@ -9,6 +10,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import send_mail
 from django.core.validators import validate_email
@@ -20,7 +22,8 @@ from markdownx.settings import MARKDOWNX_MEDIA_PATH
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .models import Post, Project, About, Attachment, Comment, Notification, PasswordResetCode, UserProfile, RateLimitHit
 from .serializers import (
     PostListSerializer,
     PostDetailSerializer,
@@ -30,6 +33,7 @@ from .serializers import (
     AttachmentSerializer,
     NotificationSerializer,
     UserStatsSerializer,
+    UserPublicSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,8 +43,58 @@ RESET_CODE_TTL = timedelta(minutes=10)
 RESET_CODE_COOLDOWN = timedelta(seconds=60)
 RESET_CODE_MAX_ATTEMPTS = 5
 
-# 头像大小上限：2MB
+# 头像大小上限（上传原始文件 ≤2MB；处理压缩后落盘 ≤512KB）
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
+AVATAR_TARGET_BYTES = 512 * 1024
+AVATAR_EDGE = 256
+
+# 评论内容长度上限
+COMMENT_MAX_LEN = 1000
+
+# ── IP 限频风控（DB 计数，核桃派 1GB 内存下不引入 Redis） ──────────────
+# action → (窗口内允许次数, 窗口秒数)
+RATE_LIMITS = {
+    "register": (3, 24 * 3600),       # 每 IP 每天最多注册 3 个账号
+    "login_fail": (20, 15 * 60),      # 每 IP 15 分钟内最多失败 20 次（防爆破；局域网共享出口 IP，阈值放宽避免误伤）
+    "reset_request": (3, 3600),       # 每 IP 每小时最多请求 3 次验证码
+    "comment_ip": (60, 24 * 3600),    # 每 IP 每天最多 60 条评论（正常用户远达不到）
+}
+# 单用户维度：评论最小间隔与每日上限
+COMMENT_MIN_INTERVAL = timedelta(seconds=10)
+COMMENT_USER_DAILY_MAX = 30
+
+
+def _client_ip(request):
+    """取客户端真实 IP：nginx 已配置 X-Forwarded-For / X-Real-IP，直连时回退 REMOTE_ADDR。"""
+    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or "unknown"
+
+
+def _rate_limited(ip, action, limit, window_seconds):
+    """窗口内计数是否超限；顺带以约 1/64 概率清理 48h 前的过期记录（省存储、免定时任务）。"""
+    if secrets.randbelow(64) == 0:
+        RateLimitHit.objects.filter(created_at__lt=timezone.now() - timedelta(hours=48)).delete()
+    cutoff = timezone.now() - timedelta(seconds=window_seconds)
+    return RateLimitHit.objects.filter(ip=ip, action=action, created_at__gte=cutoff).count() >= limit
+
+
+def _record_hit(ip, action):
+    RateLimitHit.objects.create(ip=ip, action=action)
+
+
+def _muted_message(user):
+    """用户在禁言中时返回可展示的提示文案，未禁言返回 None。"""
+    profile = getattr(user, "profile", None)
+    if not profile:
+        return None
+    if profile.is_muted_forever:
+        return "你已被永久禁言，无法发表评论"
+    if profile.muted_until and timezone.now() < profile.muted_until:
+        local = timezone.localtime(profile.muted_until)
+        return f"你已被禁言，解禁时间：{local:%Y-%m-%d %H:%M}"
+    return None
 
 
 def _avatar_url(user):
@@ -97,6 +151,33 @@ def users_list(request):
     )
     return Response(UserStatsSerializer(qs, many=True).data)
 
+@api_view(["GET"])
+def user_profile_detail(request, username):
+    """用户个人主页：资料 + 该用户近期已审核评论（含所在文章，前台可点击跳转）。"""
+    user = User.objects.filter(username=username, is_active=True).first()
+    if user is None:
+        return Response({"detail": "Not found."}, status=404)
+    profile = UserPublicSerializer(user, context={"request": request}).data
+    # 注意：Comment.author 未显式设 related_name，实例反向属性是 comment_set
+    # （聚合里能写 "comment" 是 related_query_name 提供的查询名，属性访问不通用）
+    comments_qs = (
+        Comment.objects.filter(author=user, is_approved=True)
+        .select_related("post")
+        .order_by("-created_at")[:20]
+    )
+    profile["comments"] = [
+        {
+            "id": c.id,
+            "content": c.content,
+            "created_at": c.created_at,
+            "post_slug": c.post.slug,
+            "post_title": c.post.title,
+        }
+        for c in comments_qs
+    ]
+    return Response(profile)
+
+
 @api_view(["POST"])
 def increment_views(request, pk):
     post = Post.objects.filter(slug=pk).first()
@@ -147,12 +228,18 @@ def markdownx_upload(request):
 
 @api_view(["POST"])
 def register(request):
-    """注册：用户名 + 邮箱 + 密码（>=6 位），创建普通用户。"""
+    """注册：用户名 + 邮箱 + 密码（>=6 位），创建普通用户；按 IP 限频风控。"""
+    ip = _client_ip(request)
+    limit, window = RATE_LIMITS["register"]
+    if _rate_limited(ip, "register", limit, window):
+        return Response({"detail": "当前网络注册过于频繁，请明天再试"}, status=429)
     username = (request.data.get("username") or "").strip()
     password = request.data.get("password") or ""
     email = (request.data.get("email") or "").strip()
     if not username or not password:
         return Response({"detail": "用户名和密码必填"}, status=400)
+    if len(username) > 20:
+        return Response({"detail": "用户名最长 20 个字符"}, status=400)
     if len(password) < 6:
         return Response({"detail": "密码至少 6 位"}, status=400)
     if not email:
@@ -163,32 +250,82 @@ def register(request):
         return Response({"detail": "邮箱格式不正确"}, status=400)
     if User.objects.filter(username=username).exists():
         return Response({"detail": "用户名已存在"}, status=400)
+    if User.objects.filter(email__iexact=email).exists():
+        return Response({"detail": "该邮箱已注册"}, status=400)
     user = User.objects.create_user(username=username, password=password, email=email)
+    _record_hit(ip, "register")
     return Response({"id": user.id, "username": user.username}, status=201)
+
+
+class LoginView(TokenObtainPairView):
+    """登录（JWT）：失败按 IP 限频防爆破，成功不计入失败计数。"""
+
+    def post(self, request, *args, **kwargs):
+        ip = _client_ip(request)
+        limit, window = RATE_LIMITS["login_fail"]
+        if _rate_limited(ip, "login_fail", limit, window):
+            return Response({"detail": "登录失败次数过多，请 15 分钟后再试"}, status=429)
+        # 注意：TokenObtainPairSerializer(raise_exception=True) 会直接抛出 AuthenticationFailed，
+        # 由外层 DRF dispatch 的 handle_exception 转成 401——super().post() 并不会正常返回响应，
+        # 因此这里用 try/except 记录失败后重新抛出，才能让 401 语义与限频计数同时生效
+        try:
+            return super().post(request, *args, **kwargs)
+        except Exception:
+            _record_hit(ip, "login_fail")
+            raise
 
 
 @api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    """当前登录用户信息（需带 access token）；PATCH 可修改邮箱。"""
+    """当前登录用户信息（需带 access token）；PATCH 可修改邮箱 / 个性签名。"""
     u = request.user
     if request.method == "PATCH":
         email = (request.data.get("email") or "").strip()
-        if not email:
-            return Response({"detail": "邮箱必填"}, status=400)
-        try:
-            validate_email(email)
-        except ValidationError:
-            return Response({"detail": "邮箱格式不正确"}, status=400)
-        u.email = email
-        u.save(update_fields=["email"])
-    return Response({"id": u.id, "username": u.username, "email": u.email, "avatar": _avatar_url(u), "is_staff": u.is_staff, "is_superuser": u.is_superuser})
+        bio = (request.data.get("bio") or "").strip()
+        changed = []
+        if email:
+            try:
+                validate_email(email)
+            except ValidationError:
+                return Response({"detail": "邮箱格式不正确"}, status=400)
+            u.email = email
+            changed.append("email")
+        if request.data.get("bio") is not None:
+            if len(bio) > 200:
+                return Response({"detail": "个性签名最长 200 字"}, status=400)
+            profile, _ = UserProfile.objects.get_or_create(user=u)
+            profile.bio = bio
+            profile.save(update_fields=["bio"])
+        if changed:
+            u.save(update_fields=changed)
+    profile = getattr(u, "profile", None)
+    muted_until = profile.muted_until if profile else None
+    return Response(
+        {
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "avatar": _avatar_url(u),
+            "bio": profile.bio if profile else "",
+            "is_staff": u.is_staff,
+            "is_superuser": u.is_superuser,
+            "is_active": u.is_active,
+            "is_muted": profile.is_muted if profile else False,
+            "muted_until": muted_until.isoformat() if muted_until else None,
+            "email_verified": profile.email_verified if profile else False,
+        }
+    )
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_avatar(request):
-    """上传/更换头像：multipart/form-data（file 必填），限 2MB 且须为合法图片。"""
+    """上传/更换头像：multipart/form-data（file 必填），原始 ≤2MB 且须为合法图片。
+
+    为省磁盘（核桃派存储有限）：缩放到 ≤256×256、转 WebP（失败回退 JPEG）落盘，
+    目标 ≤512KB；同时删除旧头像文件，避免存储只增不减。
+    """
     f = request.FILES.get("file")
     if f is None:
         return Response({"detail": "缺少 file 字段"}, status=400)
@@ -197,12 +334,36 @@ def upload_avatar(request):
     try:
         from PIL import Image
 
-        Image.open(f).verify()
+        f.seek(0)
+        img = Image.open(f)
+        img.verify()
+        f.seek(0)
+        img = Image.open(f)
+        # 统一转 RGB（透明图保留 RGBA），缩放到 256 内
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+        img.thumbnail((AVATAR_EDGE, AVATAR_EDGE), Image.LANCZOS)
+        buf = io.BytesIO()
+        ext = "webp"
+        try:
+            img.save(buf, "WEBP", quality=82)
+        except Exception:
+            ext = "jpg"
+            if img.mode == "RGBA":
+                img = img.convert("RGB")
+            buf = io.BytesIO()
+            img.save(buf, "JPEG", quality=82)
+        if buf.tell() > AVATAR_TARGET_BYTES:
+            buf = io.BytesIO()
+            img.save(buf, "JPEG", quality=68)
+            ext = "jpg"
+        buf.seek(0)
     except Exception:
         return Response({"detail": "请上传有效的图片文件"}, status=400)
-    f.seek(0)
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    profile.avatar = f
+    if profile.avatar:
+        profile.avatar.delete(save=False)  # 清理旧头像文件，节省磁盘
+    profile.avatar.save(f"{request.user.id}_{uuid4().hex[:10]}.{ext}", ContentFile(buf.read()), save=False)
     profile.save(update_fields=["avatar"])
     return Response({"avatar": profile.avatar.url})
 
@@ -218,9 +379,26 @@ def comments(request, pk):
         return Response(CommentSerializer(qs, many=True, context={"request": request}).data)
     if not request.user.is_authenticated:
         return Response({"detail": "请先登录"}, status=401)
+    # 禁言/封禁检查：被禁用户禁止发言（历史评论保留可见）
+    muted_msg = _muted_message(request.user)
+    if muted_msg:
+        return Response({"detail": muted_msg}, status=403)
     content = (request.data.get("content") or "").strip()
     if not content:
         return Response({"detail": "评论内容不能为空"}, status=400)
+    if len(content) > COMMENT_MAX_LEN:
+        return Response({"detail": f"评论最长 {COMMENT_MAX_LEN} 字"}, status=400)
+    # 发言限频：用户维度（最小间隔 + 每日上限）与 IP 维度（每日上限）
+    last = Comment.objects.filter(author=request.user, created_at__gte=timezone.now() - COMMENT_MIN_INTERVAL).exists()
+    if last:
+        return Response({"detail": "发言太快了，请稍等几秒"}, status=429)
+    day_ago = timezone.now() - timedelta(hours=24)
+    if Comment.objects.filter(author=request.user, created_at__gte=day_ago).count() >= COMMENT_USER_DAILY_MAX:
+        return Response({"detail": "今日发言次数已达上限"}, status=429)
+    ip = _client_ip(request)
+    ip_limit, ip_window = RATE_LIMITS["comment_ip"]
+    if _rate_limited(ip, "comment_ip", ip_limit, ip_window):
+        return Response({"detail": "当前网络发言过于频繁，请稍后再试"}, status=429)
     parent = None
     parent_id = request.data.get("parent_id")
     if parent_id:
@@ -228,6 +406,7 @@ def comments(request, pk):
         if parent is None:
             return Response({"detail": "回复的目标评论不存在"}, status=400)
     c = Comment.objects.create(post=post, author=request.user, content=content, parent=parent)
+    _record_hit(ip, "comment_ip")
     # 站内通知 + 邮件：回复了别人的评论（Task 5）
     if parent and parent.author_id != request.user.id:
         Notification.objects.create(recipient=parent.author, actor=request.user, comment=c, kind="reply")
@@ -350,7 +529,11 @@ def _new_code():
 
 @api_view(["POST"])
 def password_reset_request(request):
-    """发送密码重置验证码（10 分钟有效；用户不存在也返回成功，防枚举）。"""
+    """发送密码重置验证码（10 分钟有效；用户不存在也返回成功，防枚举）；按 IP 限频。"""
+    ip = _client_ip(request)
+    limit, window = RATE_LIMITS["reset_request"]
+    if _rate_limited(ip, "reset_request", limit, window):
+        return Response({"detail": "请求过于频繁，请稍后再试"}, status=429)
     email = (request.data.get("email") or "").strip()
     if not email:
         return Response({"detail": "邮箱必填"}, status=400)
@@ -372,6 +555,7 @@ def password_reset_request(request):
         code_hash=_hash_code(code),
         expires_at=timezone.now() + RESET_CODE_TTL,
     )
+    _record_hit(ip, "reset_request")
     try:
         subject = "博客密码重置验证码"
         body = f"你的验证码是：{code}\n10 分钟内有效，若非本人操作请忽略。"

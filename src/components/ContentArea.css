@@ -948,6 +948,17 @@
   opacity: 0.75;
 }
 
+/* 评论被拒提示（禁言 / 限频 / 校验失败），服务端文案原样展示 */
+.blog-comment-error {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-2) 55%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+  color: var(--accent-2);
+  font-size: 13px;
+}
+
 .blog-comment-submit {
   align-self: flex-start;
   appearance: none;

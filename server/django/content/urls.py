@@ -1,5 +1,5 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 urlpatterns = [
@@ -8,10 +8,11 @@ urlpatterns = [
     path("projects/", views.projects_list),
     path("about/", views.about_detail),
     path("users/", views.users_list),
+    path("users/<str:username>/", views.user_profile_detail),
     path("views/<str:pk>/", views.increment_views),
-    # 用户认证（JWT）
+    # 用户认证（JWT；登录失败按 IP 限频）
     path("register/", views.register),
-    path("token/", TokenObtainPairView.as_view()),
+    path("token/", views.LoginView.as_view()),
     path("token/refresh/", TokenRefreshView.as_view()),
     path("me/", views.me),
     path("me/avatar/", views.upload_avatar),

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from markdownx.models import MarkdownxField
 
 class Post(models.Model):
@@ -127,9 +128,39 @@ class About(models.Model):
 
 
 class UserProfile(models.Model):
-    """用户扩展资料：头像（自主上传，后台可编辑）。"""
+    """用户扩展资料：头像（自主上传，后台可编辑）、个性签名、禁言状态（邮箱验证预留）。"""
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     avatar = models.ImageField("头像", upload_to="avatars/", blank=True)
+    bio = models.CharField("个性签名", max_length=200, blank=True)
+    muted_until = models.DateTimeField("禁言截止", null=True, blank=True)
+    is_muted_forever = models.BooleanField("永久禁言", default=False)
+    email_verified = models.BooleanField("邮箱已验证（预留接口，暂未启用）", default=False)
+
+    @property
+    def is_muted(self):
+        """是否处于禁言状态：永久禁言，或限时禁言未到期。"""
+        if self.is_muted_forever:
+            return True
+        return bool(self.muted_until and timezone.now() < self.muted_until)
 
     def __str__(self):
         return f"{self.user.username} 的资料"
+
+
+class RateLimitHit(models.Model):
+    """IP 限频风控记录：按 (ip, action) 在窗口内计数。
+
+    用数据库实现而非 Redis：站点流量小、核桃派内存仅 1GB，DB 计数足够且零内存开销；
+    过期记录由限频检查时随机清理（约 1/64 概率），无需定时任务。
+    """
+
+    ip = models.CharField("IP", max_length=45)
+    action = models.CharField("动作", max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["ip", "action", "created_at"])]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.ip} {self.action} @ {self.created_at:%m-%d %H:%M:%S}"

@@ -58,6 +58,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .home-user-avatar {

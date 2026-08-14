@@ -62,6 +62,38 @@ async function request(path, options) {
   }
 }
 
+// 带错误详情的请求：返回 { ok, status, data, detail }，用于需要把服务端
+// 提示（禁言文案 / 限频提示 / 校验错误）原样展示给用户的写操作
+async function requestDetailed(path, options) {
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...(options?.headers || {}),
+    }
+    const res = await fetch(BASE + path, {
+      ...options,
+      headers,
+    })
+    if (res.status === 401 && headers.Authorization) {
+      notifyUnauthorized()
+      return { ok: false, status: 401, detail: '登录已过期，请重新登录' }
+    }
+    if (!res.ok) {
+      let detail = null
+      try {
+        detail = (await res.json())?.detail || null
+      } catch {
+        /* 无响应体 */
+      }
+      return { ok: false, status: res.status, detail }
+    }
+    return { ok: true, status: res.status, data: await res.json() }
+  } catch {
+    return { ok: false, status: 0, detail: '网络异常，请稍后再试' }
+  }
+}
+
 // 文章列表（按日期倒序，无 content 正文）
 export function getPosts() {
   return request('/posts/')
@@ -100,6 +132,19 @@ export function register(data) {
 // 登录（成功返回 {access, refresh}，由调用方 setToken(access) 保存）
 export function login(data) {
   return request('/token/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+// 登录/注册带详情版本：失败时返回 { ok:false, detail }，用于弹窗展示服务端提示
+export function loginDetailed(data) {
+  return requestDetailed('/token/', { method: 'POST', body: JSON.stringify(data) })
+}
+export function registerDetailed(data) {
+  return requestDetailed('/register/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+// 用户个人主页（公开资料 + 近期评论）
+export function getUserProfile(username) {
+  return request(`/users/${encodeURIComponent(username)}/`)
 }
 
 // 请求密码重置验证码（发送到邮箱；未注册邮箱同样返回 200）
@@ -170,6 +215,14 @@ export function getComments(postId) {
 // 发表评论（需登录；成功返回新评论对象；parentId 为回复目标评论 id，可为 null 表示顶层评论）
 export function addComment(postId, content, parentId) {
   return request(`/posts/${postId}/comments/`, {
+    method: 'POST',
+    body: JSON.stringify({ content, parent_id: parentId || null }),
+  })
+}
+
+// 发表评论（带详情版）：被禁言/限频时返回 { ok:false, detail: 提示文案 }
+export function addCommentDetailed(postId, content, parentId) {
+  return requestDetailed(`/posts/${postId}/comments/`, {
     method: 'POST',
     body: JSON.stringify({ content, parent_id: parentId || null }),
   })

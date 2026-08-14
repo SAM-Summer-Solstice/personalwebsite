@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext.jsx'
-import { getComments, addComment, deleteComment } from '../api.js'
+import { getComments, addCommentDetailed, deleteComment } from '../api.js'
 
 // 评论时间格式化：YYYY-MM-DD HH:mm（mono 风格展示）
 function formatTime(iso) {
@@ -43,6 +43,8 @@ export default function CommentSection({ postId, onCountChange }) {
   const [replyTarget, setReplyTarget] = useState(null) // 展开回复表单的评论 id（null 表示收起）
   const [replyText, setReplyText] = useState('')
   const [replying, setReplying] = useState(false)
+  // 发表/回复被拒时的服务端提示（禁言 / 限频文案）
+  const [submitError, setSubmitError] = useState('')
   // 已展开回复的评论 id 集合：默认每条评论只展示第一条回复，点击小三角展开其余
   const [expanded, setExpanded] = useState(() => new Set())
 
@@ -73,19 +75,22 @@ export default function CommentSection({ postId, onCountChange }) {
     }
   }, [user])
 
-  // 发表顶层评论：成功后清空输入框并追加到列表尾部
+  // 发表顶层评论：成功后清空输入框并追加到列表尾部；被拒（禁言/限频）展示服务端提示
   async function handleSubmit(e) {
     e.preventDefault()
     const text = content.trim()
     if (!text || submitting) return
     setSubmitting(true)
-    const data = await addComment(postId, text)
+    setSubmitError('')
+    const res = await addCommentDetailed(postId, text)
     setSubmitting(false)
-    if (data) {
-      const next = [...comments, data]
+    if (res?.ok && res.data) {
+      const next = [...comments, res.data]
       setComments(next)
       setContent('')
       onCountChange?.(next.length)
+    } else {
+      setSubmitError(res?.detail || '发表失败，请稍后再试')
     }
   }
 
@@ -110,14 +115,17 @@ export default function CommentSection({ postId, onCountChange }) {
     const text = replyText.trim()
     if (!text || replying) return
     setReplying(true)
-    const data = await addComment(postId, text, parent.id)
+    setSubmitError('')
+    const res = await addCommentDetailed(postId, text, parent.id)
     setReplying(false)
-    if (data) {
-      const next = [...comments, data]
+    if (res?.ok && res.data) {
+      const next = [...comments, res.data]
       setComments(next)
       setReplyTarget(null)
       setReplyText('')
       onCountChange?.(next.length)
+    } else {
+      setSubmitError(res?.detail || '回复失败，请稍后再试')
     }
   }
 
@@ -233,11 +241,15 @@ export default function CommentSection({ postId, onCountChange }) {
 
       {user ? (
         <form className="blog-comment-form" onSubmit={handleSubmit}>
+          {submitError && <p className="blog-comment-error">{submitError}</p>}
           <textarea
             className="blog-comment-input"
             placeholder="写下你的评论…"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value)
+              if (submitError) setSubmitError('')
+            }}
             rows={3}
           />
           <button

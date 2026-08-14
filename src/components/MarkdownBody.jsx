@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { highlightCodeBlocks } from '../lib/highlightCode.js'
 
 // 工科主流文件格式 → 展示类别：code（代码/脚本/配置）/ doc（文档/表格/演示/文本）/
 // model（3D/CAD/仿真/科学数据/嵌入式固件）/ media（图片/音视频）/ other（压缩包/可执行）
@@ -48,9 +49,12 @@ function inlineText(tokens) {
 
 // Markdown 正文渲染：marked 生成 HTML，h2 自动带锚点 id（${postId}-sec-N），
 // 并把 { id, text, index } 通过 onHeadings 暴露给父组件做 TOC。
+// 公式（$…$ / $$…$$）：先暂存为占位符再走 marked + DOMPurify，最后动态加载 KaTeX 渲染回填，
+// 仅当正文含公式时才下载 KaTeX（约 300KB），普通文章零开销。
 export default function MarkdownBody({ postId, markdown, onHeadings }) {
   const headingsRef = useRef([])
   const bodyRef = useRef(null)
+  const [mathHtml, setMathHtml] = useState(null)
   const html = useMemo(() => {
     const renderer = new marked.Renderer()
     const headings = []
@@ -101,11 +105,24 @@ export default function MarkdownBody({ postId, markdown, onHeadings }) {
       return `<figure class="md-figure"><img src="${href}"${t} alt="${alt}" loading="lazy" /></figure>\n`
     }
 
+    // 公式暂存：$$…$$ 块级公式与 $…$ 行内公式先替换为占位符，
+    // 避免 marked/DOMPurify 处理 LaTeX 反斜杠与特殊字符时破坏内容
+    const stash = []
+    let src = typeof markdown === 'string' ? markdown : ''
+    src = src.replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => {
+      stash.push({ tex, display: true })
+      return `\n\n@@MATH${stash.length - 1}@@\n\n`
+    })
+    src = src.replace(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g, (m, tex) => {
+      stash.push({ tex, display: false })
+      return `@@MATH${stash.length - 1}@@`
+    })
+
     // 防御：内容缺失 / marked 渲染异常时降级为转义纯文本（经 DOMPurify 消毒），
     // 绝不让异常导致单篇白屏（fail-open，与 api.js 语义一致）
     let rendered
     try {
-      rendered = marked.parse(typeof markdown === 'string' ? markdown : '', { renderer })
+      rendered = marked.parse(src, { renderer })
     } catch {
       const esc = String(markdown ?? '')
         .replace(/&/g, '&amp;')
@@ -114,10 +131,46 @@ export default function MarkdownBody({ postId, markdown, onHeadings }) {
       rendered = `<pre>${esc}</pre>`
     }
 
-    const result = DOMPurify.sanitize(rendered)
+    const clean = DOMPurify.sanitize(rendered)
     headingsRef.current = headings
-    return result
+    return { html: clean, stash }
   }, [postId, markdown])
+
+  // 公式渲染：正文含公式时动态加载 KaTeX（含样式）并回填占位符；
+  // 无公式的文章不触发任何 KaTeX 下载（零开销）
+  useEffect(() => {
+    if (!html.stash.length) {
+      setMathHtml(null)
+      return
+    }
+    let alive = true
+    import('katex')
+      .then(async ({ default: katex }) => {
+        await import('katex/dist/katex.min.css')
+        let out = html.html
+        html.stash.forEach((s, i) => {
+          let r
+          try {
+            r = katex.renderToString(s.tex, { throwOnError: false, displayMode: s.display })
+          } catch {
+            r = s.tex.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          }
+          out = out.split(`@@MATH${i}@@`).join(r)
+        })
+        if (alive) setMathHtml(out)
+      })
+      .catch(() => {
+        if (alive) setMathHtml(html.html)
+      })
+    return () => {
+      alive = false
+    }
+  }, [html])
+
+  // 代码高亮：正文含代码块时按需加载 Prism（幂等，语言未识别时保持原样）
+  useEffect(() => {
+    highlightCodeBlocks(bodyRef.current)
+  }, [finalHtmlSafe(html, mathHtml)])
 
   useEffect(() => {
     if (onHeadings) onHeadings(headingsRef.current)
@@ -168,7 +221,13 @@ export default function MarkdownBody({ postId, markdown, onHeadings }) {
 
     root.addEventListener('click', onClick)
     return () => root.removeEventListener('click', onClick)
-  }, [html])
+  }, [finalHtmlSafe(html, mathHtml)])
 
-  return <div className="md-body" ref={bodyRef} dangerouslySetInnerHTML={{ __html: html }} />
+  const finalHtml = mathHtml ?? html.html
+  return <div className="md-body" ref={bodyRef} dangerouslySetInnerHTML={{ __html: finalHtml }} />
+}
+
+// 渲染 HTML 当前值（公式回填优先，未回填用占位版）——effects 依赖此值
+function finalHtmlSafe(html, mathHtml) {
+  return mathHtml ?? html.html
 }

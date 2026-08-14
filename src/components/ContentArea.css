@@ -310,6 +310,55 @@
   color: var(--text);
 }
 
+/* 上一篇 / 下一篇 导航：单篇底部两个卡片式按钮 */
+.blog-pager {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.blog-pager-item {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.blog-pager-item:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.blog-pager-item.is-next {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.blog-pager-label {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--accent-2);
+}
+
+.blog-pager-title {
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 .post-meta-like.is-liked {
   color: var(--accent);
 }

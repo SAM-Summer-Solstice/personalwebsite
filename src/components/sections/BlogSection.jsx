@@ -124,11 +124,17 @@ function BlogCard({ post, focused, onOpen }) {
 }
 
 // 单篇视图：返回 / 大标题 / 日期标签 / Markdown 正文 / 附件下载区 / 帖子信息 / 自建评论区 + 右侧星点 TOC
-function BlogSingle({ post, onBack }) {
+function BlogSingle({ post, posts, onBack }) {
+  const navigate = useNavigate()
   const [headings, setHeadings] = useState([]) // MarkdownBody 收集的 h2，用于 TOC
   const [views, setViews] = useState(post.views) // 计数后的最新浏览量（失败保持 mock）
   const [commentCount, setCommentCount] = useState(post.comment_count ?? 0) // 评论区的实时评论数（增删后同步）
   const [activeIdx, setActiveIdx] = useState(null) // 当前可见小节序号，驱动星点 TOC 高亮
+
+  // 上一篇 / 下一篇：列表按日期倒序，上一篇 = 更新（idx-1），下一篇 = 更旧（idx+1）
+  const idx = posts.findIndex((p) => p.id === post.id)
+  const prevPost = idx > 0 ? posts[idx - 1] : null
+  const nextPost = idx >= 0 && idx < posts.length - 1 ? posts[idx + 1] : null
 
   // 单篇阅读计数：同一浏览器会话只 +1 一次（sessionStorage 守卫），成功后刷新展示值
   useEffect(() => {
@@ -230,6 +236,37 @@ function BlogSingle({ post, onBack }) {
         )}
 
         <PostMeta post={post} viewsOverride={views} commentCountOverride={commentCount} />
+
+        {(prevPost || nextPost) && (
+          <nav className="blog-pager" aria-label="文章导航">
+            {prevPost ? (
+              <button
+                type="button"
+                className="blog-pager-item"
+                title={prevPost.title}
+                onClick={() => navigate(`/posts/${prevPost.id}`)}
+              >
+                <span className="blog-pager-label mono">← 上一篇</span>
+                <span className="blog-pager-title">{prevPost.title}</span>
+              </button>
+            ) : (
+              <span />
+            )}
+            {nextPost ? (
+              <button
+                type="button"
+                className="blog-pager-item is-next"
+                title={nextPost.title}
+                onClick={() => navigate(`/posts/${nextPost.id}`)}
+              >
+                <span className="blog-pager-label mono">下一篇 →</span>
+                <span className="blog-pager-title">{nextPost.title}</span>
+              </button>
+            ) : (
+              <span />
+            )}
+          </nav>
+        )}
 
         <div className="blog-comments-area">
           <CommentSection postId={post.id} onCountChange={setCommentCount} />
@@ -355,7 +392,7 @@ export default function BlogSection({ focusId, resetSignal, onNavigate }) {
     }
     return (
       <section ref={rootRef} aria-label="日志">
-        <BlogSingle post={post} onBack={() => onNavigate('blog')} />
+        <BlogSingle post={post} posts={posts} onBack={() => onNavigate('blog')} />
       </section>
     )
   }
